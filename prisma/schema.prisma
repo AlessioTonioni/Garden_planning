@@ -1,0 +1,26 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Zone {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // GeoJSON data stored as string for simplicity in SQLite/Postgres compatibility
+  // In a full Postgres setup we could use PostGIS, but string is fine for <50 zones
+  geoJson   String 
+  
+  // Metadata
+  type      String   // "field", "tree", "grass", "path", "building", "pot"
+  name      String?
+  notes     String?
+}
