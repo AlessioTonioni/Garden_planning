@@ -47,18 +47,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
     const lastMousePos = useRef({ x: 0, y: 0 });
     const svgRef = useRef<SVGSVGElement>(null);
 
-    // DEBUG: Log state when showAll changes
-    useEffect(() => {
-        console.log('=== SHOW ALL TOGGLED ===');
-        console.log('showAll:', showAll);
-        console.log('zones.length:', zones.length);
-        console.log('items.length:', items.length);
-        console.log('panOffset:', panOffset);
-        console.log('zoom:', zoom);
-        console.log('rotation:', rotation);
-        console.log('selectedZoneId:', selectedZoneId);
-    }, [showAll]);
-
+    // --- PROJECTION MATH ---
     const { centerLat, centerLng } = useMemo(() => {
         let lats: number[] = [];
         let lngs: number[] = [];
@@ -117,15 +106,6 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
             contentBounds: { centerX: (minX + maxX) / 2, centerY: (minY + maxY) / 2 }
         };
     }, [zones, centerLat, centerLng]);
-
-    // DEBUG: Log viewBox and contentBounds
-    useEffect(() => {
-        console.log('=== VIEWBOX & BOUNDS ===');
-        console.log('viewBox:', viewBox);
-        console.log('contentBounds:', contentBounds);
-        console.log('centerLat:', centerLat);
-        console.log('centerLng:', centerLng);
-    }, [viewBox, contentBounds, centerLat, centerLng]);
 
     // --- HANDLERS ---
     const handleEditItem = (item: any) => {
@@ -254,7 +234,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
             </header>
 
             {/* Main Content */}
-            <div className="flex-1 flex relative">
+            <div className="flex-1 flex relative overflow-hidden">
 
                 {/* Canvas Area */}
                 <main className="flex-1 overflow-hidden relative bg-slate-50 flex items-center justify-center p-8">
@@ -268,7 +248,6 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                         ref={svgRef}
                         className={`w-full h-full ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                         viewBox={viewBox}
-                        style={{ background: 'rgba(255,0,0,0.1)', border: '3px solid red' }}
                         onWheel={(e) => {
                             const delta = e.deltaY;
                             setZoom(prev => {
@@ -284,10 +263,24 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                         }}
                         onMouseMove={(e) => {
                             if (isDragging) {
-                                // Simple panning: move by mouse delta, scaled by zoom
-                                const dx = (e.clientX - lastMousePos.current.x) / zoom;
-                                const dy = (e.clientY - lastMousePos.current.y) / zoom;
-                                setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+                                // Pan sensitivity divisor
+                                const sensitivity = 5;
+
+                                const dx = (e.clientX - lastMousePos.current.x) / (zoom * sensitivity);
+                                const dy = (e.clientY - lastMousePos.current.y) / (zoom * sensitivity);
+
+                                setPanOffset(prev => {
+                                    const nextX = prev.x + dx;
+                                    const nextY = prev.y + dy;
+
+                                    // simple constraint: don't let pan offset exceed approx 1000 units
+                                    // Ideally this would be dynamic based on content bounds but a simple clamp is safer/easier
+                                    const CLAMP = 10;
+                                    return {
+                                        x: Math.max(-CLAMP, Math.min(CLAMP, nextX)),
+                                        y: Math.max(-CLAMP, Math.min(CLAMP, nextY))
+                                    };
+                                });
                                 lastMousePos.current = { x: e.clientX, y: e.clientY };
                             }
                         }}
@@ -304,9 +297,6 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                             const p = project(c[1], c[0]);
                                             return `${p.x},${p.y}`;
                                         }).join(' ');
-
-                                        // Log first zone's points
-                                        if (idx === 0) console.log('=== FIRST ZONE POINTS ===', 'showAll:', showAll, 'points:', points.substring(0, 100));
 
                                         const style = getZoneStyle(zone.type);
                                         const isSelected = selectedZoneId === zone.id;
@@ -331,6 +321,13 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                     {items.map((item) => {
                                         if (!showAll && selectedZoneId !== item.zoneId) return null;
                                         const p = project(item.lat, item.lng);
+
+                                        // Safety check for invalid coordinates
+                                        if (!isFinite(p.x) || !isFinite(p.y)) {
+                                            console.warn('Invalid coordinates for item:', item);
+                                            return null;
+                                        }
+
                                         const label = (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata)?.species || '';
                                         let fontSize = 1.0;
                                         switch (item.type) {
