@@ -8,6 +8,9 @@ import EditControl from './EditControl';
 import { getZoneStyle } from './utils';
 import { ZoneTypeModal } from './ZoneTypeModal';
 import BackupControls from './BackupControls';
+import PlacementsLayer from './PlacementsLayer';
+import { ZoneEditor } from './ZoneEditor';
+import { SchematicView } from './SchematicView';
 
 // Fix for default Leaflet icons in Next.js
 const iconFix = () => {
@@ -26,53 +29,134 @@ const Map = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [pendingLayer, setPendingLayer] = useState<any>(null);
 
-    useEffect(() => {
-        iconFix();
+    // State
+    const [zones, setZones] = useState<any[]>([]);
+    const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+    const [activeTool, setActiveTool] = useState<string | null>(null);
 
-        // Load zones and add to FeatureGroup
-        const fetchZones = async () => {
+    // Refs for access in Leaflet Drag/Click handlers (closures)
+    const activeToolRef = useRef(activeTool);
+    const selectedZoneIdRef = useRef(selectedZoneId);
+    const handlePlaceItemRef = useRef<(lat: number, lng: number) => void>(() => { });
+
+    useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
+    useEffect(() => { selectedZoneIdRef.current = selectedZoneId; }, [selectedZoneId]);
+
+    // Fetch Helper
+    const loadZones = async () => {
+        try {
             const res = await fetch('/api/zones');
             if (res.ok) {
                 const data = await res.json();
-                const zones = data.map((z: any) => ({ ...z, geoJson: JSON.parse(z.geoJson) }));
-
-                if (featureGroupRef.current) {
-                    featureGroupRef.current.clearLayers();
-                    zones.forEach((zone: any) => {
-                        // Create Leaflet layer from GeoJSON
-                        const layer = L.geoJSON(zone.geoJson, {
-                            onEachFeature: (feature, layer) => {
-                                // @ts-ignore
-                                layer.options.dbId = zone.id;
-
-                                const typeInfo = getZoneStyle(zone.type);
-                                // Apply style if it's a polygon/path
-                                if (layer instanceof L.Path) {
-                                    layer.setStyle(typeInfo.style);
-                                }
-
-                                layer.bindTooltip(`
-                     <div class="font-bold text-sm bg-white/90 px-2 py-1 rounded shadow-sm border border-black/10">
-                       ${typeInfo.icon} ${zone.name || zone.type}
-                     </div>
-                   `, { permanent: true, direction: 'center', className: 'bg-transparent border-0 shadow-none' });
-                            }
-                        });
-                        layer.eachLayer((l) => {
-                            // @ts-ignore
-                            l.options.dbId = zone.id;
-                            featureGroupRef.current?.addLayer(l);
-                        });
-                    });
-                }
+                const parsedZones = data.map((z: any) => ({
+                    ...z,
+                    geoJson: JSON.parse(z.geoJson)
+                }));
+                setZones(parsedZones);
+                syncFeatureGroup(parsedZones);
             }
-        };
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
-        fetchZones();
+    const syncFeatureGroup = (loadedZones: any[]) => {
+        if (!featureGroupRef.current) return;
+        featureGroupRef.current.clearLayers();
+
+        loadedZones.forEach((zone: any) => {
+            const layer = L.geoJSON(zone.geoJson, {
+                onEachFeature: (feature, l) => {
+                    // @ts-ignore
+                    l.options.dbId = zone.id;
+                    const typeInfo = getZoneStyle(zone.type);
+                    if (l instanceof L.Path) {
+                        l.setStyle(typeInfo.style);
+                    }
+
+                    // Click handler
+                    l.on('click', (e) => {
+                        L.DomEvent.stopPropagation(e);
+
+                        const currentTool = activeToolRef.current;
+                        const currentZoneId = selectedZoneIdRef.current;
+                        const clickedZoneId = zone.id;
+
+                        // If we are in "Placement Mode" (tool active) AND clicking the correct zone
+                        if (currentTool && currentZoneId === clickedZoneId) {
+                            handlePlaceItemRef.current(e.latlng.lat, e.latlng.lng);
+                        } else {
+                            // Otherwise, just select the zone
+                            setSelectedZoneId(clickedZoneId);
+                            setActiveTool(null);
+                        }
+                    });
+
+                    l.bindTooltip(`
+                        <div class="font-bold text-sm bg-white/90 px-2 py-1 rounded shadow-sm border border-black/10">
+                          ${typeInfo.icon} ${zone.name || zone.type}
+                        </div>
+                      `, { permanent: true, direction: 'center', className: 'bg-transparent border-0 shadow-none' });
+                }
+            });
+            layer.eachLayer((l) => {
+                // @ts-ignore
+                l.options.dbId = zone.id;
+                featureGroupRef.current?.addLayer(l);
+            });
+        });
+    };
+
+    useEffect(() => {
+        iconFix();
+        loadZones();
     }, []);
 
+    // --- Placement Handlers ---
+    const handlePlaceItem = async (lat: number, lng: number, zoneIdOverride?: string, typeOverride?: string) => {
+        const targetZoneId = zoneIdOverride || selectedZoneId;
+        const targetType = typeOverride || activeTool;
+
+        if (!targetZoneId || !targetType) return;
+
+        const payload = {
+            zoneId: targetZoneId,
+            type: targetType,
+            lat,
+            lng,
+            metadata: {}
+        };
+
+        const res = await fetch('/api/placements', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            loadZones(); // Refresh to show new item
+        }
+    };
+
+    useEffect(() => { handlePlaceItemRef.current = handlePlaceItem; }, [handlePlaceItem]);
+
+    const handleUpdateItem = async (id: string, lat?: number, lng?: number, metadata?: any) => {
+        await fetch(`/api/placements/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lng, metadata })
+        });
+        loadZones(); // Refresh to show new metadata/position
+    };
+
+    const handleDeleteItem = async (id: string) => {
+        await fetch(`/api/placements/${id}`, { method: 'DELETE' });
+        loadZones();
+    };
+
+
+    // --- Zone Handlers ---
     const handleCreated = (e: any) => {
-        // defer saving until type is selected
         setPendingLayer(e.layer);
         setIsModalOpen(true);
     };
@@ -83,79 +167,108 @@ const Map = () => {
 
         const layer = pendingLayer;
         const geoJson = layer.toGeoJSON();
+        const payload = { geoJson, type, name: label, notes: '' };
 
-        // Apply visual style immediately for feedback
-        const typeInfo = getZoneStyle(type);
-        if (layer instanceof L.Path) {
-            layer.setStyle(typeInfo.style);
-        }
+        const res = await fetch('/api/zones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-        // Optimistic: Add Tooltip
-        layer.bindTooltip(`${typeInfo.icon} ${label}`, { permanent: true, direction: 'center' }).openTooltip();
-
-        const payload = {
-            geoJson,
-            type,
-            name: label,
-            notes: ''
-        };
-
-        try {
-            const res = await fetch('/api/zones', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                const newZone = await res.json();
-                // @ts-ignore
-                layer.options.dbId = newZone.id;
-            }
-        } catch (err) {
-            console.error('Error saving zone:', err);
+        if (res.ok) {
+            loadZones(); // Re-sync EVERYTHING
         }
         setPendingLayer(null);
     };
 
     const handleCancelType = () => {
         setIsModalOpen(false);
-        // Remove the drawn layer if cancelled
         if (pendingLayer && featureGroupRef.current) {
             featureGroupRef.current.removeLayer(pendingLayer);
         }
         setPendingLayer(null);
     };
 
-    const handleDeleted = async (e: any) => {
-        const layers = e.layers;
-        layers.eachLayer(async (layer: any) => {
-            const id = layer.options?.dbId;
-            if (id) {
-                console.log('Deleting zone:', id);
-                await fetch(`/api/zones/${id}`, { method: 'DELETE' });
-            }
-        });
+    const handleDeleteZone = async (id: string) => {
+        await fetch(`/api/zones/${id}`, { method: 'DELETE' });
+        setSelectedZoneId(null);
+        loadZones();
     };
+
+    const handleUpdateZone = async (id: string, updates: any) => {
+        await fetch(`/api/zones/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        });
+        loadZones();
+    };
+
+    // --- Derived State ---
+    const activeZone = zones.find(z => z.id === selectedZoneId);
+    // Let's show ALL placements, but only allow adding to active zone.
+    const allPlacements = zones.flatMap(z => z.placements || []);
+
+    const [showSchematic, setShowSchematic] = useState(false);
 
     return (
         <>
-            <BackupControls onRestore={() => {
-                // Determine simplest way to reload. Since we have fetchZones inside useEffect with no dependency to force-trigger, 
-                // we might want to extract fetchZones or just force a window reload for simplicity in this prototype phase.
-                // Or better: add a simple counter state to dependency array.
-                window.location.reload();
-            }} />
+            <BackupControls onRestore={() => window.location.reload()} />
+
+            {/* Toggle Schematic View */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000]">
+                <button
+                    onClick={() => setShowSchematic(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full shadow-2xl font-bold flex items-center gap-3 border-4 border-white transform transition-transform hover:scale-105"
+                >
+                    <span className="text-2xl">🗺️</span>
+                    <span className="uppercase tracking-wide">Open Plan View</span>
+                </button>
+            </div>
+
+            {showSchematic && (
+                <SchematicView
+                    zones={zones}
+                    items={allPlacements}
+                    onClose={() => setShowSchematic(false)}
+                    onPlace={(zoneId, lat, lng, type) => handlePlaceItem(lat, lng, zoneId, type)}
+                    onDeleteItem={handleDeleteItem}
+                    onUpdateItem={handleUpdateItem}
+                />
+            )}
+
             <ZoneTypeModal
                 isOpen={isModalOpen}
                 onSelect={handleTypeSelect}
                 onCancel={handleCancelType}
             />
+
+            {/* Zone Editor Overlay */}
+            {selectedZoneId && activeZone && (
+                <ZoneEditor
+                    zone={activeZone}
+                    onClose={() => {
+                        setSelectedZoneId(null);
+                        setActiveTool(null);
+                    }}
+                    activeTool={activeTool}
+                    onToolSelect={setActiveTool}
+                    onDeleteZone={handleDeleteZone}
+                    onUpdateZone={handleUpdateZone}
+                />
+            )}
+
             <MapContainer
                 center={[47.3769, 8.5417]}
                 zoom={18}
                 style={{ height: '100%', width: '100%' }}
                 className="z-0"
+                // Deselect on map bg click
+                // @ts-ignore
+                onClick={() => {
+                    setSelectedZoneId(null);
+                    setActiveTool(null);
+                }}
             >
                 <TileLayer
                     attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
@@ -175,9 +288,22 @@ const Map = () => {
                         featureGroupRef.current = fg;
                     }}
                     onCreated={handleCreated}
-                    onEdited={(e) => console.log('Edited feature, sync not implemented yet')}
-                    onDeleted={handleDeleted}
+                    // We disabled standard delete/edit in favor of our custom UI, 
+                    // or we keep them for geometry editing? 
+                    // Let's keep geometry edit, but delete via UI is safer for cascade.
+                    onEdited={(e) => console.log('Edited feature')}
+                    onDeleted={(e) => console.log('Deleted via toolbar')} // Fallback
                 />
+
+                <PlacementsLayer
+                    placements={allPlacements}
+                    activeZoneId={selectedZoneId}
+                    activeTool={activeTool}
+                    onPlace={handlePlaceItem}
+                    onUpdate={handleUpdateItem}
+                    onDelete={handleDeleteItem}
+                />
+
             </MapContainer>
         </>
     );

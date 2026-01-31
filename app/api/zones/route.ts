@@ -3,9 +3,12 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
     try {
-        const zones = await prisma.zone.findMany();
+        const zones = await prisma.zone.findMany({
+            include: { placements: true }
+        });
         return NextResponse.json(zones);
     } catch (error) {
+        console.error('Check failed:', error);
         return NextResponse.json({ error: 'Failed to fetch zones' }, { status: 500 });
     }
 }

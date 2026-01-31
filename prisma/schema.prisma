@@ -23,4 +23,22 @@ model Zone {
   type      String   // "field", "tree", "grass", "path", "building", "pot"
   name      String?
   notes     String?
+  
+  placements Placement[]
+}
+
+model Placement {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  zoneId    String
+  zone      Zone     @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  
+  type      String   // "plant", "tree", "pot", "furniture"
+  lat       Float
+  lng       Float
+  
+  // JSON metadata (Species, Date Planted, Pot Size, etc.)
+  metadata  String   @default("{}") 
 }
