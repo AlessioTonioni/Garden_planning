@@ -12,9 +12,10 @@ interface SchematicViewProps {
     onPlace: (zoneId: string, lat: number, lng: number, type: string) => void;
     onDeleteItem: (id: string) => void;
     onUpdateItem: (id: string, lat?: number, lng?: number, metadata?: any) => void;
+    onUpdateZone: (id: string, updates: any) => void;
 }
 
-export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, onUpdateItem }: SchematicViewProps) => {
+export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, onUpdateItem, onUpdateZone }: SchematicViewProps) => {
     // --- PERSISTENCE ---
     const [rotation, setRotation] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -44,8 +45,15 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
     // --- PAN STATE ---
     const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
+    const [draggingVertex, setDraggingVertex] = useState<{ zoneId: string, vertexIndex: number } | null>(null);
+    const [localZones, setLocalZones] = useState(zones);
     const lastMousePos = useRef({ x: 0, y: 0 });
     const svgRef = useRef<SVGSVGElement>(null);
+
+    // Sync localZones when props.zones changes
+    useEffect(() => {
+        setLocalZones(zones);
+    }, [zones]);
 
     // --- PROJECTION MATH ---
     const { centerLat, centerLng } = useMemo(() => {
@@ -68,6 +76,53 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
 
     const scale = 100000;
     const cosFactor = Math.cos(centerLat * Math.PI / 180);
+
+    // --- KEYBOARD MOVEMENT ---
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!selectedZoneId || activeTool) return;
+
+            const DELTA = 0.0000005; // Small shift delta
+            let dX = 0;
+            let dY = 0;
+
+            if (e.key === 'ArrowUp') dY = -1;
+            else if (e.key === 'ArrowDown') dY = 1;
+            else if (e.key === 'ArrowLeft') dX = -1;
+            else if (e.key === 'ArrowRight') dX = 1;
+            else return;
+
+            e.preventDefault();
+
+            const rad = (rotation * Math.PI) / 180;
+            const sin = Math.sin(rad);
+            const cos = Math.cos(rad);
+
+            // Rotate movement vector according to view rotation
+            // dlat = (dX * sin - dY * cos) * DELTA
+            // dlng = (dX * cos + dY * sin) * DELTA / cosFactor
+            const dLat = (dX * sin - dY * cos) * DELTA;
+            const dLng = (dX * cos + dY * sin) * (DELTA / cosFactor);
+
+            setLocalZones(prev => prev.map(z => {
+                if (z.id !== selectedZoneId) return z;
+
+                const newGeoJson = JSON.parse(JSON.stringify(z.geoJson));
+                const newCoords = newGeoJson.geometry.coordinates[0].map((coord: [number, number]) => {
+                    return [coord[0] + dLng, coord[1] + dLat];
+                });
+                newGeoJson.geometry.coordinates[0] = newCoords;
+
+                // For now, let's persist immediately to match the vertex drag behavior
+                onUpdateZone(z.id, { geoJson: JSON.stringify(newGeoJson) });
+
+                return { ...z, geoJson: newGeoJson };
+            }));
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedZoneId, activeTool, cosFactor, rotation, onUpdateZone]);
 
     const project = (lat: number, lng: number) => {
         const y = -(lat - centerLat) * scale;
@@ -262,6 +317,46 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                             }
                         }}
                         onMouseMove={(e) => {
+                            if (draggingVertex && svgRef.current) {
+                                const svg = svgRef.current;
+                                const pt = svg.createSVGPoint();
+                                pt.x = e.clientX;
+                                pt.y = e.clientY;
+                                const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+
+                                const angle = -rotation * Math.PI / 180;
+                                const ox = contentBounds.centerX;
+                                const oy = contentBounds.centerY;
+
+                                // Inverse transform the mouse position to map coordinates
+                                const px = svgP.x - panOffset.x;
+                                const py = svgP.y - panOffset.y;
+                                const rx = ox + (px - ox) * Math.cos(angle) - (py - oy) * Math.sin(angle);
+                                const ry = oy + (px - ox) * Math.sin(angle) + (py - oy) * Math.cos(angle);
+                                const sx = (rx - ox) / zoom + ox;
+                                const sy = (ry - oy) / zoom + oy;
+
+                                const { lat, lng } = unproject(sx, sy);
+
+                                // Update local state for immediate feedback
+                                setLocalZones(prev => prev.map(z => {
+                                    if (z.id !== draggingVertex.zoneId) return z;
+
+                                    const newGeoJson = JSON.parse(JSON.stringify(z.geoJson));
+                                    const newCoords = [...newGeoJson.geometry.coordinates[0]];
+                                    newCoords[draggingVertex.vertexIndex] = [lng, lat];
+
+                                    if (draggingVertex.vertexIndex === 0) {
+                                        newCoords[newCoords.length - 1] = [lng, lat];
+                                    }
+
+                                    newGeoJson.geometry.coordinates[0] = newCoords;
+                                    return { ...z, geoJson: newGeoJson };
+                                }));
+                                lastMousePos.current = { x: e.clientX, y: e.clientY };
+                                return;
+                            }
+
                             if (isDragging) {
                                 // Pan sensitivity divisor
                                 const sensitivity = 5;
@@ -274,7 +369,6 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                     const nextY = prev.y + dy;
 
                                     // simple constraint: don't let pan offset exceed approx 1000 units
-                                    // Ideally this would be dynamic based on content bounds but a simple clamp is safer/easier
                                     const CLAMP = 10;
                                     return {
                                         x: Math.max(-CLAMP, Math.min(CLAMP, nextX)),
@@ -284,14 +378,23 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                 lastMousePos.current = { x: e.clientX, y: e.clientY };
                             }
                         }}
-                        onMouseUp={() => setIsDragging(false)}
+                        onMouseUp={() => {
+                            if (draggingVertex) {
+                                const zone = localZones.find(z => z.id === draggingVertex.zoneId);
+                                if (zone) {
+                                    onUpdateZone(zone.id, { geoJson: JSON.stringify(zone.geoJson) });
+                                }
+                                setDraggingVertex(null);
+                            }
+                            setIsDragging(false);
+                        }}
                         onMouseLeave={() => setIsDragging(false)}
                     >
                         <g transform={`translate(${panOffset.x}, ${panOffset.y})`}>
                             <g transform={`scale(${zoom}) rotate(${rotation}, ${contentBounds.centerX || 0}, ${contentBounds.centerY || 0})`}>
                                 {/* Zones layer - always renders all zones */}
                                 <g key="zones-layer">
-                                    {zones.map((zone, idx) => {
+                                    {localZones.map((zone) => {
                                         if (zone.geoJson.geometry.type !== 'Polygon') return null;
                                         const points = zone.geoJson.geometry.coordinates[0].map((c: any) => {
                                             const p = project(c[1], c[0]);
@@ -309,10 +412,39 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                                 stroke={isSelected ? '#000' : style.style.color}
                                                 strokeWidth={isSelected ? 0.3 : 0.08}
                                                 opacity={isSelected ? 1 : 0.4}
-                                                className="cursor-pointer"
+                                                className="cursor-pointer transition-all duration-300"
                                                 onClick={(e) => handleZoneClick(zone, e)}
                                             />
                                         );
+                                    })}
+                                </g>
+
+                                {/* Handles layer - rendered AFTER zones to be on top */}
+                                <g key="handles-layer">
+                                    {localZones.filter(z => z.id === selectedZoneId).map(zone => {
+                                        const polygonPoints = zone.geoJson.geometry.coordinates[0];
+                                        return polygonPoints.map((coord: any, vIdx: number) => {
+                                            if (vIdx === polygonPoints.length - 1) return null;
+                                            const p = project(coord[1], coord[0]);
+                                            return (
+                                                <circle
+                                                    key={`${zone.id}-v-${vIdx}`}
+                                                    cx={p.x}
+                                                    cy={p.y}
+                                                    r={0.6 / zoom}
+                                                    fill="white"
+                                                    stroke="#000"
+                                                    strokeWidth={0.08 / zoom}
+                                                    className="cursor-move hover:fill-blue-500 transition-colors shadow-lg"
+                                                    onMouseDown={(e) => {
+                                                        e.stopPropagation();
+                                                        setDraggingVertex({ zoneId: zone.id, vertexIndex: vIdx });
+                                                        setIsDragging(true);
+                                                        lastMousePos.current = { x: e.clientX, y: e.clientY };
+                                                    }}
+                                                />
+                                            );
+                                        });
                                     })}
                                 </g>
 

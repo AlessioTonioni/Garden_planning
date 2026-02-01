@@ -234,6 +234,7 @@ const Map = () => {
                     onPlace={(zoneId, lat, lng, type) => handlePlaceItem(lat, lng, zoneId, type)}
                     onDeleteItem={handleDeleteItem}
                     onUpdateItem={handleUpdateItem}
+                    onUpdateZone={handleUpdateZone}
                 />
             )}
 
