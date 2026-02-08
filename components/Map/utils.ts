@@ -16,3 +16,33 @@ export const getZoneStyle = (type: string) => {
             return { color: '#3388ff', icon: '❓', style: { color: '#3b82f6', fillColor: '#93c5fd', fillOpacity: 0.5 } }; // Blue
     }
 };
+
+export const calculateArea = (geoJson: any) => {
+    if (!geoJson || geoJson.geometry.type !== 'Polygon') return 0;
+
+    const coords = geoJson.geometry.coordinates[0];
+    if (coords.length < 3) return 0;
+
+    // Use a simpler planar approximation for small garden areas
+    // Reference: https://en.wikipedia.org/wiki/Shoelace_formula
+
+    // Estimate center latitude to calculate longitude scaling factor
+    let sumLat = 0;
+    coords.forEach((c: any) => sumLat += c[1]);
+    const avgLat = sumLat / coords.length;
+
+    const latScaling = 111320; // Meters per degree latitude
+    const lngScaling = 111320 * Math.cos(avgLat * Math.PI / 180); // Meters per degree longitude
+
+    let area = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+        const x1 = coords[i][0] * lngScaling;
+        const y1 = coords[i][1] * latScaling;
+        const x2 = coords[i + 1][0] * lngScaling;
+        const y2 = coords[i + 1][1] * latScaling;
+
+        area += (x1 * y2) - (x2 * y1);
+    }
+
+    return Math.abs(area / 2);
+};

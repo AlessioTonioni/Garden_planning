@@ -24,6 +24,9 @@ model Zone {
   name      String?
   notes     String?
   
+  lastWateredAt    DateTime?
+  lastFertilizedAt DateTime?
+  
   placements Placement[]
 }
 

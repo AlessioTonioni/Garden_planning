@@ -37,6 +37,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
                 ...(body.type !== undefined && { type: body.type }),
                 ...(body.notes !== undefined && { notes: body.notes }),
                 ...(body.geoJson !== undefined && { geoJson: body.geoJson }),
+                ...(body.lastWateredAt !== undefined && { lastWateredAt: body.lastWateredAt }),
+                ...(body.lastFertilizedAt !== undefined && { lastFertilizedAt: body.lastFertilizedAt }),
             }
         });
 

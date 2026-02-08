@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { getZoneStyle } from './utils';
+import { getZoneStyle, calculateArea } from './utils';
 import { getItemIcon } from './ItemIcons';
-import { Trash2, Move, Map as MapIcon, Layers, Info, Save, X } from 'lucide-react';
+import { Trash2, Move, Map as MapIcon, Layers, Info, Save, X, Droplets, FlaskConical } from 'lucide-react';
 
 interface SchematicViewProps {
     zones: any[];
@@ -48,6 +48,8 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
     const [draggingVertex, setDraggingVertex] = useState<{ zoneId: string, vertexIndex: number } | null>(null);
     const [localZones, setLocalZones] = useState(zones);
     const [localItems, setLocalItems] = useState(items);
+    const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
+    const [zoneNameInput, setZoneNameInput] = useState('');
     const lastMousePos = useRef({ x: 0, y: 0 });
     const itemsRef = useRef(items);
     itemsRef.current = items;
@@ -199,6 +201,23 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
             onUpdateItem(selectedItemId, undefined, undefined, editingMetadata);
             setSelectedItemId(null);
             setEditingMetadata(null);
+        }
+    };
+
+    const handleUpdateZoneAction = async (zoneId: string, field: 'lastWateredAt' | 'lastFertilizedAt') => {
+        const now = new Date().toISOString();
+        onUpdateZone(zoneId, { [field]: now });
+    };
+
+    const handleRenameZone = (zone: any) => {
+        setEditingZoneId(zone.id);
+        setZoneNameInput(zone.name || '');
+    };
+
+    const saveZoneName = () => {
+        if (editingZoneId) {
+            onUpdateZone(editingZoneId, { name: zoneNameInput });
+            setEditingZoneId(null);
         }
     };
 
@@ -558,22 +577,62 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
 
                         return (
                             <div key={zone.id} className="mb-10">
-                                <header
-                                    className="flex items-center justify-between mb-4 cursor-pointer group"
-                                    onClick={() => {
-                                        // When selecting a zone, clear any individual item selection to avoid keyboard conflict
-                                        setSelectedItemId(null);
-                                        setSelectedZoneId(selectedZoneId === zone.id ? null : zone.id);
-                                    }}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-2 h-2 rounded-full transition-all ${selectedZoneId === zone.id ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] scale-125' : 'bg-slate-200'}`} />
-                                        <span className={`text-sm font-black uppercase text-slate-800 tracking-tight ${selectedZoneId !== zone.id && 'opacity-40'}`}>
-                                            {zone.name}
-                                        </span>
+                                <div className="flex flex-col gap-1 w-full">
+                                    <div
+                                        className="flex items-center justify-between cursor-pointer group"
+                                        onClick={() => {
+                                            setSelectedItemId(null);
+                                            setSelectedZoneId(selectedZoneId === zone.id ? null : zone.id);
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-2 h-2 rounded-full transition-all ${selectedZoneId === zone.id ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] scale-125' : 'bg-slate-200'}`} />
+                                            {editingZoneId === zone.id ? (
+                                                <input
+                                                    autoFocus
+                                                    className="text-sm font-black uppercase text-slate-800 bg-slate-100 px-2 py-0.5 rounded border-none focus:ring-0 w-40"
+                                                    value={zoneNameInput}
+                                                    onChange={e => setZoneNameInput(e.target.value)}
+                                                    onBlur={saveZoneName}
+                                                    onKeyDown={e => e.key === 'Enter' && saveZoneName()}
+                                                    onClick={e => e.stopPropagation()}
+                                                />
+                                            ) : (
+                                                <span
+                                                    className={`text-sm font-black uppercase text-slate-800 tracking-tight transition-opacity ${selectedZoneId !== zone.id && 'opacity-40'}`}
+                                                    onDoubleClick={(e) => { e.stopPropagation(); handleRenameZone(zone); }}
+                                                >
+                                                    {zone.name}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[9px] font-black text-slate-400 uppercase">{calculateArea(zone.geoJson).toFixed(1)} m²</span>
+                                            <span className="text-[8px] font-bold text-slate-300">{localItems.length} ITEMS</span>
+                                        </div>
                                     </div>
-                                    <span className="text-[10px] font-black text-slate-200">{localItems.length} ITEMS</span>
-                                </header>
+
+                                    {selectedZoneId === zone.id && (
+                                        <div className="flex gap-2 mt-2 px-5">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleUpdateZoneAction(zone.id, 'lastWateredAt'); }}
+                                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors"
+                                                title={`Last watered: ${zone.lastWateredAt ? new Date(zone.lastWateredAt).toLocaleDateString() : 'Never'}`}
+                                            >
+                                                <Droplets size={12} />
+                                                {zone.lastWateredAt ? new Date(zone.lastWateredAt).toLocaleDateString() : 'Water'}
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleUpdateZoneAction(zone.id, 'lastFertilizedAt'); }}
+                                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors"
+                                                title={`Last fertilized: ${zone.lastFertilizedAt ? new Date(zone.lastFertilizedAt).toLocaleDateString() : 'Never'}`}
+                                            >
+                                                <FlaskConical size={12} />
+                                                {zone.lastFertilizedAt ? new Date(zone.lastFertilizedAt).toLocaleDateString() : 'Fertilize'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div className="space-y-3">
                                     {localItems.map(item => {
@@ -607,14 +666,36 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
 
                                                 {isEditing && (
                                                     <div className="flex flex-col gap-3 pt-3 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                        <input
-                                                            autoFocus
-                                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500/20"
-                                                            value={editingMetadata?.species || ''}
-                                                            onChange={e => setEditingMetadata({ ...editingMetadata, species: e.target.value })}
-                                                            onKeyDown={e => e.key === 'Enter' && handleSaveMetadata()}
-                                                            placeholder="Species Name..."
-                                                        />
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <div className="flex flex-col gap-1">
+                                                                <label className="text-[9px] font-black text-slate-400 uppercase px-1">Species</label>
+                                                                <input
+                                                                    autoFocus
+                                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500/20"
+                                                                    value={editingMetadata?.species || ''}
+                                                                    onChange={e => setEditingMetadata({ ...editingMetadata, species: e.target.value })}
+                                                                    placeholder="Species Name..."
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col gap-1">
+                                                                <label className="text-[9px] font-black text-slate-400 uppercase px-1">Quantity</label>
+                                                                <input
+                                                                    type="number"
+                                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500/20"
+                                                                    value={editingMetadata?.quantity || 1}
+                                                                    onChange={e => setEditingMetadata({ ...editingMetadata, quantity: parseInt(e.target.value) || 1 })}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase px-1">Date Added</label>
+                                                            <input
+                                                                type="date"
+                                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500/20"
+                                                                value={editingMetadata?.addedAt || new Date().toISOString().split('T')[0]}
+                                                                onChange={e => setEditingMetadata({ ...editingMetadata, addedAt: e.target.value })}
+                                                            />
+                                                        </div>
                                                         <div className="flex gap-2">
                                                             <button onClick={handleSaveMetadata} className="flex-1 bg-green-500 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95">Save</button>
                                                             <button onClick={() => setSelectedItemId(null)} className="px-4 bg-slate-100 text-slate-500 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">X</button>
