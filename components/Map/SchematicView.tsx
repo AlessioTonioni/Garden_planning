@@ -13,9 +13,10 @@ interface SchematicViewProps {
     onDeleteItem: (id: string) => void;
     onUpdateItem: (id: string, lat?: number, lng?: number, metadata?: any) => void;
     onUpdateZone: (id: string, updates: any) => void;
+    isPrimary?: boolean;
 }
 
-export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, onUpdateItem, onUpdateZone }: SchematicViewProps) => {
+export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, onUpdateItem, onUpdateZone, isPrimary = false }: SchematicViewProps) => {
     // --- PERSISTENCE ---
     const [rotation, setRotation] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -232,22 +233,22 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                 const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
 
                 const angle = -rotation * Math.PI / 180;
-                const ox = contentBounds.centerX;
-                const oy = contentBounds.centerY;
+                const ox = 0;
+                const oy = 0;
 
-                // Subtract pan
+                // Step 1: Undo Pan
                 const px = svgP.x - panOffset.x;
                 const py = svgP.y - panOffset.y;
 
-                // Inverse rotate
-                const rx = ox + (px - ox) * Math.cos(angle) - (py - oy) * Math.sin(angle);
-                const ry = oy + (px - ox) * Math.sin(angle) + (py - oy) * Math.cos(angle);
+                // Step 2: Undo Zoom (Scale around 0,0)
+                const zx = px / zoom;
+                const zy = py / zoom;
 
-                // Inverse scale
-                const sx = (rx - ox) / zoom + ox;
-                const sy = (ry - oy) / zoom + oy;
+                // Step 3: Undo Rotation (around 0,0)
+                const rx = zx * Math.cos(angle) - zy * Math.sin(angle);
+                const ry = zx * Math.sin(angle) + zy * Math.cos(angle);
 
-                const { lat, lng } = unproject(sx, sy);
+                const { lat, lng } = unproject(rx, ry);
                 onPlace(zone.id, lat, lng, activeTool);
             }
         } else {
@@ -257,28 +258,19 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
     };
 
     return (
-        <div className="fixed inset-0 z-[2000] bg-white flex flex-col font-sans select-none overflow-hidden">
+        <div className="absolute inset-0 z-[50] bg-white flex flex-col font-sans select-none overflow-hidden">
             {/* Header */}
-            <header className="flex justify-between items-center p-4 border-b bg-white shadow-sm z-[40]">
+            <header className="flex justify-between items-center px-8 py-3 bg-white/40 backdrop-blur-xl border-b border-white/20 shadow-sm z-[40]">
                 <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center text-white shadow-lg border-2 border-white">
-                            <MapIcon size={24} />
-                        </div>
-                        <div className="flex flex-col">
-                            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none">Garden Editor</h1>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Schematic View Mode</span>
-                        </div>
-                    </div>
-
+                    {/* Tools section */}
                     {selectedZoneId && (
-                        <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                        <div className="flex items-center gap-2 bg-white/60 p-1 rounded-2xl border border-white/40 shadow-sm">
                             {['plant', 'tree', 'pot'].map(t => (
                                 <button
                                     key={t}
                                     onClick={() => setActiveTool(activeTool === t ? null : t)}
                                     className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2
-                                        ${activeTool === t ? 'bg-white shadow-md text-green-600 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
+                                        ${activeTool === t ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'}`}
                                 >
                                     {t === 'tree' ? '🌳' : t === 'pot' ? '🪴' : '🌱'}
                                     <span className="capitalize">{t}</span>
@@ -326,9 +318,11 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                         Reset
                     </button>
 
-                    <button onClick={onClose} className="px-6 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 border-b-4 border-slate-700">
-                        Close Plan
-                    </button>
+                    {!isPrimary && (
+                        <button onClick={onClose} className="px-6 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 border-b-4 border-slate-700">
+                            Close Plan
+                        </button>
+                    )}
                 </div>
             </header>
 
@@ -435,129 +429,145 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                         onMouseLeave={() => setIsDragging(false)}
                     >
                         <g transform={`translate(${panOffset.x}, ${panOffset.y})`}>
-                            <g transform={`scale(${zoom}) rotate(${rotation}, ${contentBounds.centerX || 0}, ${contentBounds.centerY || 0})`}>
-                                {/* Zones layer - always renders all zones */}
-                                <g key="zones-layer">
-                                    {localZones.map((zone) => {
-                                        if (zone.geoJson.geometry.type !== 'Polygon') return null;
-                                        const points = zone.geoJson.geometry.coordinates[0].map((c: any) => {
-                                            const p = project(c[1], c[0]);
-                                            return `${p.x},${p.y}`;
-                                        }).join(' ');
+                            <g transform={`scale(${zoom})`}>
+                                <g transform={`rotate(${rotation}, 0, 0)`}>
+                                    {/* Zones layer - always renders all zones */}
+                                    <g key="zones-layer">
+                                        {localZones.map((zone) => {
+                                            if (zone.geoJson.geometry.type !== 'Polygon') return null;
+                                            const points = zone.geoJson.geometry.coordinates[0].map((c: any) => {
+                                                const p = project(c[1], c[0]);
+                                                return `${p.x},${p.y}`;
+                                            }).join(' ');
 
-                                        const style = getZoneStyle(zone.type);
-                                        const isSelected = selectedZoneId === zone.id;
+                                            const style = getZoneStyle(zone.type);
+                                            const isSelected = selectedZoneId === zone.id;
 
-                                        return (
-                                            <polygon
-                                                key={zone.id}
-                                                points={points}
-                                                fill={style.style.fillColor}
-                                                stroke={isSelected ? '#000' : style.style.color}
-                                                strokeWidth={isSelected ? 0.3 : 0.08}
-                                                opacity={isSelected ? 1 : 0.4}
-                                                className="cursor-pointer transition-all duration-300"
-                                                onClick={(e) => {
-                                                    // When handling zone click on map, clear item selection
-                                                    setSelectedItemId(null);
-                                                    handleZoneClick(zone, e);
-                                                }}
-                                            />
-                                        );
-                                    })}
-                                </g>
-
-                                {/* Handles layer - rendered AFTER zones to be on top */}
-                                <g key="handles-layer">
-                                    {localZones.filter(z => z.id === selectedZoneId).map(zone => {
-                                        const polygonPoints = zone.geoJson.geometry.coordinates[0];
-                                        return polygonPoints.map((coord: any, vIdx: number) => {
-                                            if (vIdx === polygonPoints.length - 1) return null;
-                                            const p = project(coord[1], coord[0]);
                                             return (
-                                                <circle
-                                                    key={`${zone.id}-v-${vIdx}`}
-                                                    cx={p.x}
-                                                    cy={p.y}
-                                                    r={0.6 / zoom}
-                                                    fill="white"
-                                                    stroke="#000"
-                                                    strokeWidth={0.08 / zoom}
-                                                    className="cursor-move hover:fill-blue-500 transition-colors shadow-lg"
-                                                    onMouseDown={(e) => {
-                                                        e.stopPropagation();
-                                                        setDraggingVertex({ zoneId: zone.id, vertexIndex: vIdx });
-                                                        setIsDragging(true);
-                                                        lastMousePos.current = { x: e.clientX, y: e.clientY };
+                                                <polygon
+                                                    key={zone.id}
+                                                    points={points}
+                                                    fill={style.style.fillColor}
+                                                    stroke={isSelected ? '#000' : style.style.color}
+                                                    strokeWidth={isSelected ? 0.3 : 0.08}
+                                                    opacity={isSelected ? 1 : 0.4}
+                                                    className="cursor-pointer transition-all duration-300"
+                                                    onClick={(e) => {
+                                                        // When handling zone click on map, clear item selection
+                                                        setSelectedItemId(null);
+                                                        handleZoneClick(zone, e);
                                                     }}
                                                 />
                                             );
-                                        });
-                                    })}
-                                </g>
+                                        })}
+                                    </g>
 
-                                {/* Items layer - visibility controlled by showAll */}
-                                <g key="items-layer">
-                                    {localItems.map((item) => {
-                                        // Visibility Logic:
-                                        // 1. Show if global 'showAll' is true
-                                        // 2. Show if item is part of the currently selected zone
-                                        // 3. Show if item ITSELF is selected (even if zone is hidden)
-                                        // 4. Show if item belongs to the same zone as the currently selected item
-                                        const isSelected = selectedItemId === item.id;
-                                        const selectedItemZoneId = selectedItemId ? localItems.find(i => i.id === selectedItemId)?.zoneId : null;
+                                    {/* Handles layer - rendered AFTER zones to be on top */}
+                                    <g key="handles-layer">
+                                        {localZones.filter(z => z.id === selectedZoneId).map(zone => {
+                                            const polygonPoints = zone.geoJson.geometry.coordinates[0];
+                                            return polygonPoints.map((coord: any, vIdx: number) => {
+                                                if (vIdx === polygonPoints.length - 1) return null;
+                                                const p = project(coord[1], coord[0]);
+                                                return (
+                                                    <circle
+                                                        key={`${zone.id}-v-${vIdx}`}
+                                                        cx={p.x}
+                                                        cy={p.y}
+                                                        r={0.6 / zoom}
+                                                        fill="white"
+                                                        stroke="#000"
+                                                        strokeWidth={0.08 / zoom}
+                                                        className="cursor-move hover:fill-blue-500 transition-colors shadow-lg"
+                                                        onMouseDown={(e) => {
+                                                            e.stopPropagation();
+                                                            setDraggingVertex({ zoneId: zone.id, vertexIndex: vIdx });
+                                                            setIsDragging(true);
+                                                            lastMousePos.current = { x: e.clientX, y: e.clientY };
+                                                        }}
+                                                    />
+                                                );
+                                            });
+                                        })}
+                                    </g>
 
-                                        const isVisible = showAll ||
-                                            selectedZoneId === item.zoneId ||
-                                            isSelected ||
-                                            (selectedItemZoneId && item.zoneId === selectedItemZoneId);
+                                    {/* Items layer - visibility controlled by showAll */}
+                                    <g key="items-layer">
+                                        {localItems.map((item) => {
+                                            // Visibility Logic:
+                                            // 1. Show if global 'showAll' is true
+                                            // 2. Show if item is part of the currently selected zone
+                                            // 3. Show if item ITSELF is selected (even if zone is hidden)
+                                            // 4. Show if item belongs to the same zone as the currently selected item
+                                            const isSelected = selectedItemId === item.id;
+                                            const selectedItemZoneId = selectedItemId ? localItems.find(i => i.id === selectedItemId)?.zoneId : null;
 
-                                        if (!isVisible) return null;
-                                        const p = project(item.lat, item.lng);
+                                            const isVisible = showAll ||
+                                                selectedZoneId === item.zoneId ||
+                                                isSelected ||
+                                                (selectedItemZoneId && item.zoneId === selectedItemZoneId);
 
-                                        // Safety check for invalid coordinates
-                                        if (!isFinite(p.x) || !isFinite(p.y)) {
-                                            console.warn('Invalid coordinates for item:', item);
-                                            return null;
-                                        }
+                                            if (!isVisible) return null;
+                                            const p = project(item.lat, item.lng);
 
-                                        const label = (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata)?.species || '';
-                                        let fontSize = 1.0;
-                                        switch (item.type) {
-                                            case 'tree': fontSize = 2.2; break;
-                                            case 'plant': fontSize = 0.6; break;
-                                            case 'pot': fontSize = 0.4; break;
-                                        }
+                                            // Safety check for invalid coordinates
+                                            if (!isFinite(p.x) || !isFinite(p.y)) {
+                                                console.warn('Invalid coordinates for item:', item);
+                                                return null;
+                                            }
 
-                                        return (
-                                            <g key={item.id} transform={`translate(${p.x}, ${p.y})`} className="cursor-pointer">
-                                                <g transform={`rotate(${-rotation})`} onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleEditItem(item);
-                                                }}>
-                                                    {isSelected && (
-                                                        <circle
-                                                            r={fontSize * 0.5}
-                                                            fill="none"
-                                                            stroke="#3b82f6"
-                                                            strokeWidth={0.1}
-                                                            strokeDasharray="0.5,0.5"
-                                                            className="animate-spin-slow"
-                                                            style={{ animationDuration: '3s' }}
-                                                        />
-                                                    )}
-                                                    <text textAnchor="middle" dominantBaseline="middle" fontSize={fontSize}>
-                                                        {item.type === 'tree' ? '🌳' : item.type === 'pot' ? '🪴' : '🌱'}
-                                                    </text>
-                                                    {label && (
-                                                        <text y={fontSize * 0.8} textAnchor="middle" fontSize={fontSize * 0.15} fill="#1e293b" className="font-black uppercase">
-                                                            {label}
+                                            const label = (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata)?.species || '';
+                                            let fontSize = 1.0;
+                                            switch (item.type) {
+                                                case 'tree': fontSize = 2.2; break;
+                                                case 'plant': fontSize = 0.6; break;
+                                                case 'pot': fontSize = 0.4; break;
+                                            }
+
+                                            return (
+                                                <g key={item.id} transform={`translate(${p.x}, ${p.y})`} className="cursor-pointer">
+                                                    <g transform={`rotate(${-rotation})`} onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleEditItem(item);
+                                                    }}>
+                                                        {isSelected && (
+                                                            <circle
+                                                                r={fontSize * 0.5}
+                                                                fill="none"
+                                                                stroke="#3b82f6"
+                                                                strokeWidth={0.1}
+                                                                strokeDasharray="0.5,0.5"
+                                                                className="animate-spin-slow"
+                                                                style={{ animationDuration: '3s' }}
+                                                            />
+                                                        )}
+                                                        <text
+                                                            x="0"
+                                                            y="0"
+                                                            textAnchor="middle"
+                                                            dominantBaseline="central"
+                                                            fontSize={fontSize}
+                                                        >
+                                                            {item.type === 'tree' ? '🌳' : item.type === 'pot' ? '🪴' : '🌱'}
                                                         </text>
-                                                    )}
+                                                        {label && (
+                                                            <text
+                                                                x="0"
+                                                                y={fontSize * 0.8}
+                                                                textAnchor="middle"
+                                                                dominantBaseline="central"
+                                                                fontSize={fontSize * 0.15}
+                                                                fill="#1e293b"
+                                                                className="font-black uppercase"
+                                                            >
+                                                                {label}
+                                                            </text>
+                                                        )}
+                                                    </g>
                                                 </g>
-                                            </g>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </g>
                                 </g>
                             </g>
                         </g>

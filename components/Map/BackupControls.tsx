@@ -64,21 +64,21 @@ const BackupControls = ({ onRestore }: { onRestore: () => void }) => {
     };
 
     return (
-        <div className="absolute top-4 right-4 z-[1000] flex gap-2">
+        <div className="flex items-center gap-2">
             <button
                 onClick={handleExport}
-                className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-md hover:bg-gray-50 text-gray-700 font-medium"
+                className="flex items-center gap-2 bg-white/40 hover:bg-white/60 backdrop-blur-md border border-white/30 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider text-slate-600 transition-all active:scale-95"
                 title="Download Backup"
             >
-                <Download size={18} />
+                <Download size={14} />
                 Export
             </button>
             <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-md hover:bg-gray-50 text-gray-700 font-medium"
+                className="flex items-center gap-2 bg-white/40 hover:bg-white/60 backdrop-blur-md border border-white/30 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider text-slate-600 transition-all active:scale-95"
                 title="Restore from Backup"
             >
-                <Upload size={18} />
+                <Upload size={14} />
                 Import
             </button>
             <input

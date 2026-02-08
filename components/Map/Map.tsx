@@ -23,7 +23,11 @@ const iconFix = () => {
     });
 };
 
-const Map = () => {
+interface MapProps {
+    initialView?: 'map' | 'schematic';
+}
+
+const Map: React.FC<MapProps> = ({ initialView = 'map' }) => {
     // @ts-ignore
     const featureGroupRef = useRef<L.FeatureGroup | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,6 +37,13 @@ const Map = () => {
     const [zones, setZones] = useState<any[]>([]);
     const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
     const [activeTool, setActiveTool] = useState<string | null>(null);
+
+    const [showSchematic, setShowSchematic] = useState(initialView === 'schematic');
+
+    // Sync showSchematic with prop if it changes (e.g. navigation)
+    useEffect(() => {
+        setShowSchematic(initialView === 'schematic');
+    }, [initialView]);
 
     // Refs for access in Leaflet Drag/Click handlers (closures)
     const activeToolRef = useRef(activeTool);
@@ -209,23 +220,8 @@ const Map = () => {
     // Let's show ALL placements, but only allow adding to active zone.
     const allPlacements = zones.flatMap(z => z.placements || []);
 
-    const [showSchematic, setShowSchematic] = useState(false);
-
     return (
         <>
-            <BackupControls onRestore={() => window.location.reload()} />
-
-            {/* Toggle Schematic View */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000]">
-                <button
-                    onClick={() => setShowSchematic(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full shadow-2xl font-bold flex items-center gap-3 border-4 border-white transform transition-transform hover:scale-105"
-                >
-                    <span className="text-2xl">🗺️</span>
-                    <span className="uppercase tracking-wide">Open Plan View</span>
-                </button>
-            </div>
-
             {showSchematic && (
                 <SchematicView
                     zones={zones}
@@ -235,6 +231,7 @@ const Map = () => {
                     onDeleteItem={handleDeleteItem}
                     onUpdateItem={handleUpdateItem}
                     onUpdateZone={handleUpdateZone}
+                    isPrimary={initialView === 'schematic'}
                 />
             )}
 

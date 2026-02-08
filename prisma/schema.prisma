@@ -45,3 +45,36 @@ model Placement {
   // JSON metadata (Species, Date Planted, Pot Size, etc.)
   metadata  String   @default("{}") 
 }
+
+model Seed {
+  id             String    @id @default(cuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  species        String
+  packetQuantity Int       @default(0)
+  acquiredAt     DateTime  @default(now())
+  expiryDate     DateTime?
+  notes          String?
+  
+  seedlings      Seedling[]
+}
+
+model Seedling {
+  id               String    @id @default(cuid())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  seedId           String
+  seed             Seed      @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  
+  quantity         Int       @default(1)
+  seededAt         DateTime  @default(now())
+  expectedSproutAt DateTime?
+  sproutedAt       DateTime?
+  transplantedAt   DateTime?
+  
+  location         String?   // e.g., "Bed A", "Tray 1", "Window"
+  status           String    @default("seeded") // "seeded", "sprouted", "transplanted", "failed"
+  notes            String?
+}
