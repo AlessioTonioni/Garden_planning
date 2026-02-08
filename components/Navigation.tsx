@@ -25,8 +25,8 @@ const Navigation: React.FC<NavigationProps> = ({ activeView, onViewChange }) => 
                 </div>
             </div>
 
-            {/* Controls - Centered (Shifted left to avoid overlap) */}
-            <div className="absolute left-[38%] -translate-x-1/2 flex items-center gap-2 pointer-events-auto">
+            {/* Controls - Centered */}
+            <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 pointer-events-auto">
                 {/* Backup Controls */}
                 <div className="bg-white/60 backdrop-blur-lg border border-white/30 p-1 rounded-2xl shadow-lg">
                     <BackupControls onRestore={() => window.location.reload()} />

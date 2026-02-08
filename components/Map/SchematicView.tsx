@@ -259,72 +259,108 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
 
     return (
         <div className="absolute inset-0 z-[50] bg-white flex flex-col font-sans select-none overflow-hidden">
-            {/* Header */}
-            <header className="flex justify-between items-center px-8 py-3 bg-white/40 backdrop-blur-xl border-b border-white/20 shadow-sm z-[40]">
-                <div className="flex items-center gap-6">
-                    {/* Tools section */}
-                    {selectedZoneId && (
-                        <div className="flex items-center gap-2 bg-white/60 p-1 rounded-2xl border border-white/40 shadow-sm">
-                            {['plant', 'tree', 'pot'].map(t => (
-                                <button
-                                    key={t}
-                                    onClick={() => setActiveTool(activeTool === t ? null : t)}
-                                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2
-                                        ${activeTool === t ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'}`}
-                                >
-                                    {t === 'tree' ? '🌳' : t === 'pot' ? '🪴' : '🌱'}
-                                    <span className="capitalize">{t}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
+            {/* Discrete top tools (if selected zone) */}
+            {selectedZoneId && (
+                <div className="absolute top-24 left-8 z-[60] flex flex-col gap-2 bg-white/80 backdrop-blur-xl p-2 rounded-2xl border border-white/40 shadow-xl animate-in slide-in-from-left-8 duration-500">
+                    <div className="text-[9px] font-black uppercase text-center text-slate-400 tracking-widest pb-2 border-b border-slate-200/50 mb-1">
+                        Tools
+                    </div>
+                    {['plant', 'tree', 'pot'].map(t => (
+                        <button
+                            key={t}
+                            onClick={() => setActiveTool(activeTool === t ? null : t)}
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-all duration-300 relative group
+                                ${activeTool === t ? 'bg-green-600 text-white shadow-lg shadow-green-200 scale-110 z-10' : 'bg-white/50 text-slate-400 hover:bg-green-50 hover:text-green-600 hover:scale-105'}`}
+                            title={`Place ${t}`}
+                        >
+                            {t === 'tree' ? '🌳' : t === 'pot' ? '🪴' : '🌱'}
+                            {activeTool === t && (
+                                <div className="absolute left-full ml-3 px-2 py-1 bg-slate-800 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">
+                                    {t.toUpperCase()}
+                                </div>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Bottom Control Bar - Floating */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 bg-white/80 backdrop-blur-xl border border-white/40 p-1.5 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.12)] animate-in slide-in-from-bottom-8 duration-700">
+
+                {/* Show All Toggle */}
+                <div className="flex items-center gap-3 px-4 py-2 bg-slate-50/50 rounded-full border border-slate-100/50">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Show All</span>
+                    <button
+                        onClick={() => setShowAll(!showAll)}
+                        className={`w-10 h-5 rounded-full relative transition-all duration-300 ${showAll ? 'bg-green-500 shadow-inner' : 'bg-slate-200'}`}
+                    >
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${showAll ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
                 </div>
 
-                <div className="flex items-center gap-6 text-slate-600">
-                    <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
-                        <span className="text-[10px] font-black uppercase text-slate-400 px-2 tracking-widest">Show All</span>
-                        <button
-                            onClick={() => setShowAll(!showAll)}
-                            className={`w-12 h-6 rounded-full relative transition-all ${showAll ? 'bg-green-500' : 'bg-slate-300'}`}
-                        >
-                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${showAll ? 'translate-x-7' : 'translate-x-1'}`} />
-                        </button>
-                    </div>
+                <div className="w-px h-8 bg-slate-200" />
 
-                    <div className="flex flex-col gap-1 w-24">
-                        <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase">
-                            <span>Rotate</span>
-                            <span className="text-green-600">{rotation}°</span>
-                        </div>
-                        <input type="range" min="0" max="360" value={rotation} onChange={(e) => setRotation(Number(e.target.value))} className="w-full accent-green-600" />
+                {/* Rotate Control */}
+                <div className="flex flex-col gap-1 w-28 px-2">
+                    <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-tight">
+                        <span>Rotate</span>
+                        <span className="text-green-600 font-mono">{rotation}°</span>
                     </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="360"
+                        value={rotation}
+                        onChange={(e) => setRotation(Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-600 hover:accent-green-500 transition-all"
+                    />
+                </div>
 
-                    <div className="flex flex-col gap-1 w-24">
-                        <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase">
-                            <span>Zoom</span>
-                            <span className="text-green-600">{zoom.toFixed(1)}x</span>
-                        </div>
-                        <input type="range" min="0.5" max="5" step="0.1" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-full accent-green-600" />
+                <div className="w-px h-8 bg-slate-200" />
+
+                {/* Zoom Control */}
+                <div className="flex flex-col gap-1 w-28 px-2">
+                    <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-tight">
+                        <span>Zoom</span>
+                        <span className="text-green-600 font-mono">{zoom.toFixed(1)}x</span>
                     </div>
+                    <input
+                        type="range"
+                        min="0.5"
+                        max="5"
+                        step="0.1"
+                        value={zoom}
+                        onChange={(e) => setZoom(Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-600 hover:accent-green-500 transition-all"
+                    />
+                </div>
 
+                <div className="w-px h-8 bg-slate-200" />
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 pl-1">
                     <button
                         onClick={() => {
                             setPanOffset({ x: 0, y: 0 });
                             setZoom(1);
                             setRotation(0);
                         }}
-                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition-all"
+                        className="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-95"
+                        title="Reset View"
                     >
-                        Reset
+                        <MapIcon size={16} />
                     </button>
 
                     {!isPrimary && (
-                        <button onClick={onClose} className="px-6 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 border-b-4 border-slate-700">
-                            Close Plan
+                        <button
+                            onClick={onClose}
+                            className="px-5 py-2 bg-slate-900 hover:bg-black text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg transition-all hover:scale-105 active:scale-95"
+                        >
+                            Close
                         </button>
                     )}
                 </div>
-            </header>
+            </div>
 
             {/* Main Content */}
             <div className="flex-1 flex relative overflow-hidden">
