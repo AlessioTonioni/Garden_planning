@@ -18,8 +18,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         });
 
         return NextResponse.json(placement);
-    } catch (error) {
-        return NextResponse.json({ error: 'Failed to update placement' }, { status: 500 });
+    } catch (error: any) {
+        console.error('Update placement failed:', error);
+        return NextResponse.json({
+            error: 'Failed to update placement',
+            message: error.message,
+            stack: error.stack
+        }, { status: 500 });
     }
 }
 

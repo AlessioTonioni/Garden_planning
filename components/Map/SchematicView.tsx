@@ -47,13 +47,20 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
     const [isDragging, setIsDragging] = useState(false);
     const [draggingVertex, setDraggingVertex] = useState<{ zoneId: string, vertexIndex: number } | null>(null);
     const [localZones, setLocalZones] = useState(zones);
+    const [localItems, setLocalItems] = useState(items);
     const lastMousePos = useRef({ x: 0, y: 0 });
+    const itemsRef = useRef(items);
+    itemsRef.current = items;
     const svgRef = useRef<SVGSVGElement>(null);
 
-    // Sync localZones when props.zones changes
+    // Sync local state when props changes
     useEffect(() => {
         setLocalZones(zones);
     }, [zones]);
+
+    useEffect(() => {
+        setLocalItems(items);
+    }, [items]);
 
     // --- PROJECTION MATH ---
     const { centerLat, centerLng } = useMemo(() => {
@@ -80,49 +87,66 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
     // --- KEYBOARD MOVEMENT ---
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (!selectedZoneId || activeTool) return;
+            if (activeTool) return;
+            if (!selectedZoneId && !selectedItemId) return;
 
-            const DELTA = 0.0000005; // Small shift delta
-            let dX = 0;
-            let dY = 0;
+            // Only respond to arrows
+            const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+            if (!keys.includes(e.key)) return;
 
+            e.preventDefault();
+
+            const DELTA = 0.000001; // Increased delta for visibility
+            let dX = 0, dY = 0;
             if (e.key === 'ArrowUp') dY = -1;
             else if (e.key === 'ArrowDown') dY = 1;
             else if (e.key === 'ArrowLeft') dX = -1;
             else if (e.key === 'ArrowRight') dX = 1;
-            else return;
-
-            e.preventDefault();
 
             const rad = (rotation * Math.PI) / 180;
             const sin = Math.sin(rad);
             const cos = Math.cos(rad);
-
-            // Rotate movement vector according to view rotation
-            // dlat = (dX * sin - dY * cos) * DELTA
-            // dlng = (dX * cos + dY * sin) * DELTA / cosFactor
             const dLat = (dX * sin - dY * cos) * DELTA;
             const dLng = (dX * cos + dY * sin) * (DELTA / cosFactor);
 
-            setLocalZones(prev => prev.map(z => {
-                if (z.id !== selectedZoneId) return z;
+            if (selectedItemId) {
+                setLocalItems(prev => prev.map(item => {
+                    if (item.id !== selectedItemId) return item;
+                    return { ...item, lat: item.lat + dLat, lng: item.lng + dLng };
+                }));
+            } else if (selectedZoneId) {
+                setLocalZones(prev => prev.map(z => {
+                    if (z.id !== selectedZoneId) return z;
+                    const newGeoJson = JSON.parse(JSON.stringify(z.geoJson));
+                    newGeoJson.geometry.coordinates[0] = newGeoJson.geometry.coordinates[0].map((coord: [number, number]) => [
+                        coord[0] + dLng, coord[1] + dLat
+                    ]);
+                    return { ...z, geoJson: newGeoJson };
+                }));
+            }
+        };
 
-                const newGeoJson = JSON.parse(JSON.stringify(z.geoJson));
-                const newCoords = newGeoJson.geometry.coordinates[0].map((coord: [number, number]) => {
-                    return [coord[0] + dLng, coord[1] + dLat];
-                });
-                newGeoJson.geometry.coordinates[0] = newCoords;
+        const handleKeyUp = (e: KeyboardEvent) => {
+            const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+            if (!keys.includes(e.key)) return;
 
-                // For now, let's persist immediately to match the vertex drag behavior
-                onUpdateZone(z.id, { geoJson: JSON.stringify(newGeoJson) });
-
-                return { ...z, geoJson: newGeoJson };
-            }));
+            // Persist final state on KeyUp to prevent "snap back" during continuous movement
+            if (selectedItemId) {
+                const item = localItems.find(i => i.id === selectedItemId);
+                if (item) onUpdateItem(item.id, item.lat, item.lng);
+            } else if (selectedZoneId) {
+                const zone = localZones.find(z => z.id === selectedZoneId);
+                if (zone) onUpdateZone(zone.id, { geoJson: JSON.stringify(zone.geoJson) });
+            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedZoneId, activeTool, cosFactor, rotation, onUpdateZone]);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, [selectedZoneId, selectedItemId, activeTool, cosFactor, rotation, onUpdateZone, onUpdateItem, localItems, localZones]);
 
     const project = (lat: number, lng: number) => {
         const y = -(lat - centerLat) * scale;
@@ -164,6 +188,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
 
     // --- HANDLERS ---
     const handleEditItem = (item: any) => {
+        setSelectedZoneId(null); // Clear zone when item is selected
         setSelectedItemId(item.id);
         const meta = item.metadata ? (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata) : {};
         setEditingMetadata(meta);
@@ -413,7 +438,11 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                                 strokeWidth={isSelected ? 0.3 : 0.08}
                                                 opacity={isSelected ? 1 : 0.4}
                                                 className="cursor-pointer transition-all duration-300"
-                                                onClick={(e) => handleZoneClick(zone, e)}
+                                                onClick={(e) => {
+                                                    // When handling zone click on map, clear item selection
+                                                    setSelectedItemId(null);
+                                                    handleZoneClick(zone, e);
+                                                }}
                                             />
                                         );
                                     })}
@@ -450,8 +479,21 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
 
                                 {/* Items layer - visibility controlled by showAll */}
                                 <g key="items-layer">
-                                    {items.map((item) => {
-                                        if (!showAll && selectedZoneId !== item.zoneId) return null;
+                                    {localItems.map((item) => {
+                                        // Visibility Logic:
+                                        // 1. Show if global 'showAll' is true
+                                        // 2. Show if item is part of the currently selected zone
+                                        // 3. Show if item ITSELF is selected (even if zone is hidden)
+                                        // 4. Show if item belongs to the same zone as the currently selected item
+                                        const isSelected = selectedItemId === item.id;
+                                        const selectedItemZoneId = selectedItemId ? localItems.find(i => i.id === selectedItemId)?.zoneId : null;
+
+                                        const isVisible = showAll ||
+                                            selectedZoneId === item.zoneId ||
+                                            isSelected ||
+                                            (selectedItemZoneId && item.zoneId === selectedItemZoneId);
+
+                                        if (!isVisible) return null;
                                         const p = project(item.lat, item.lng);
 
                                         // Safety check for invalid coordinates
@@ -474,11 +516,22 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                                     e.stopPropagation();
                                                     handleEditItem(item);
                                                 }}>
+                                                    {isSelected && (
+                                                        <circle
+                                                            r={fontSize * 0.5}
+                                                            fill="none"
+                                                            stroke="#3b82f6"
+                                                            strokeWidth={0.1}
+                                                            strokeDasharray="0.5,0.5"
+                                                            className="animate-spin-slow"
+                                                            style={{ animationDuration: '3s' }}
+                                                        />
+                                                    )}
                                                     <text textAnchor="middle" dominantBaseline="middle" fontSize={fontSize}>
                                                         {item.type === 'tree' ? '🌳' : item.type === 'pot' ? '🪴' : '🌱'}
                                                     </text>
                                                     {label && (
-                                                        <text y={fontSize * 0.8} textAnchor="middle" fontSize={fontSize * 0.3} fill="#1e293b" className="font-black uppercase">
+                                                        <text y={fontSize * 0.8} textAnchor="middle" fontSize={fontSize * 0.15} fill="#1e293b" className="font-black uppercase">
                                                             {label}
                                                         </text>
                                                     )}
@@ -507,7 +560,11 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                             <div key={zone.id} className="mb-10">
                                 <header
                                     className="flex items-center justify-between mb-4 cursor-pointer group"
-                                    onClick={() => setSelectedZoneId(selectedZoneId === zone.id ? null : zone.id)}
+                                    onClick={() => {
+                                        // When selecting a zone, clear any individual item selection to avoid keyboard conflict
+                                        setSelectedItemId(null);
+                                        setSelectedZoneId(selectedZoneId === zone.id ? null : zone.id);
+                                    }}
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className={`w-2 h-2 rounded-full transition-all ${selectedZoneId === zone.id ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] scale-125' : 'bg-slate-200'}`} />
@@ -552,7 +609,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                                     <div className="flex flex-col gap-3 pt-3 border-t border-slate-100" onClick={e => e.stopPropagation()}>
                                                         <input
                                                             autoFocus
-                                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-green-500/20"
+                                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500/20"
                                                             value={editingMetadata?.species || ''}
                                                             onChange={e => setEditingMetadata({ ...editingMetadata, species: e.target.value })}
                                                             onKeyDown={e => e.key === 'Enter' && handleSaveMetadata()}

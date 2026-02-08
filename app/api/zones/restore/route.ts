@@ -22,10 +22,18 @@ export async function POST(request: Request) {
                 // For now, let's keep it simple: Create new entries matching the data.
                 await tx.zone.create({
                     data: {
-                        geoJson: zone.geoJson, // Already stringified in export? or need check
+                        geoJson: zone.geoJson,
                         type: zone.type,
                         name: zone.name,
-                        notes: zone.notes
+                        notes: zone.notes,
+                        placements: {
+                            create: zone.placements?.map((p: any) => ({
+                                type: p.type,
+                                lat: p.lat,
+                                lng: p.lng,
+                                metadata: p.metadata
+                            })) || []
+                        }
                     }
                 });
             }
