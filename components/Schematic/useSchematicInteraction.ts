@@ -43,11 +43,29 @@ export const useSchematicInteraction = ({
     // --- KEYBOARD MOVEMENT ---
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if typing in an input field
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+            // WASD for map panning (always available)
+            const wasdKeys = ['w', 'a', 's', 'd', 'W', 'A', 'S', 'D'];
+            if (wasdKeys.includes(e.key)) {
+                e.preventDefault();
+                const PAN_SPEED = 1 / zoom; // Adjust speed based on zoom
+                let dx = 0, dy = 0;
+                if (e.key.toLowerCase() === 'w') dy = PAN_SPEED;
+                else if (e.key.toLowerCase() === 's') dy = -PAN_SPEED;
+                else if (e.key.toLowerCase() === 'a') dx = PAN_SPEED;
+                else if (e.key.toLowerCase() === 'd') dx = -PAN_SPEED;
+                setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+                return;
+            }
+
+            // Arrow keys for moving selected item/zone
             if (activeTool) return;
             if (!selectedZoneId && !selectedItemId) return;
 
-            const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-            if (!keys.includes(e.key)) return;
+            const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+            if (!arrowKeys.includes(e.key)) return;
 
             e.preventDefault();
 
@@ -100,7 +118,7 @@ export const useSchematicInteraction = ({
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, [selectedZoneId, selectedItemId, activeTool, cosFactor, rotation, onUpdateZone, onUpdateItem, localItems, localZones]);
+    }, [selectedZoneId, selectedItemId, activeTool, cosFactor, rotation, zoom, onUpdateZone, onUpdateItem, localItems, localZones, setPanOffset]);
 
     // --- MOUSE HANDLERS ---
     const handleMouseDown = (e: React.MouseEvent) => {

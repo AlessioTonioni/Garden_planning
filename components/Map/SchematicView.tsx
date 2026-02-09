@@ -163,7 +163,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                                     points={points}
                                                     fill={style.style.fillColor}
                                                     stroke={isSelected ? '#000' : style.style.color}
-                                                    strokeWidth={isSelected ? 0.3 : 0.08}
+                                                    strokeWidth={isSelected ? 0.15 : 0.08}
                                                     opacity={isSelected ? 1 : 0.4}
                                                     className="cursor-pointer transition-all duration-300"
                                                     onClick={(e) => {
@@ -187,7 +187,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                                         key={`${zone.id}-v-${vIdx}`}
                                                         cx={p.x}
                                                         cy={p.y}
-                                                        r={0.6 / zoom}
+                                                        r={0.3 / zoom}
                                                         fill="white"
                                                         stroke="#000"
                                                         strokeWidth={0.08 / zoom}
