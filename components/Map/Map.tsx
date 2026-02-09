@@ -104,9 +104,7 @@ const Map: React.FC<MapProps> = ({ initialView = 'map' }) => {
                     });
 
                     l.bindTooltip(`
-                        <div class="font-bold text-sm bg-white/90 px-2 py-1 rounded shadow-sm border border-black/10">
-                          ${typeInfo.icon} ${zone.name || zone.type}
-                        </div>
+                        <div class="text-lg">${typeInfo.icon}</div>
                       `, { permanent: true, direction: 'center', className: 'bg-transparent border-0 shadow-none' });
                 }
             });
@@ -249,8 +247,6 @@ const Map: React.FC<MapProps> = ({ initialView = 'map' }) => {
                         setSelectedZoneId(null);
                         setActiveTool(null);
                     }}
-                    activeTool={activeTool}
-                    onToolSelect={setActiveTool}
                     onDeleteZone={handleDeleteZone}
                     onUpdateZone={handleUpdateZone}
                 />

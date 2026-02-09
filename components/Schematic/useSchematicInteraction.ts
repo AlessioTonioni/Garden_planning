@@ -200,6 +200,7 @@ export const useSchematicInteraction = ({
             const { lat, lng } = unproject(rx, ry);
 
             onPlace(zone.id, lat, lng, activeTool);
+            setActiveTool(null); // Clear tool after placing
         } else {
             setSelectedZoneId(isSelected ? null : zone.id);
             setActiveTool(null);
