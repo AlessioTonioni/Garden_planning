@@ -41,7 +41,6 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
 
             {zones.map(zone => {
                 const zoneItems = items.filter(i => i.zoneId === zone.id);
-                if (zoneItems.length === 0 && !showAll) return null;
 
                 return (
                     <div key={zone.id} className="mb-10">
@@ -50,7 +49,7 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                                 <div className="flex items-center gap-3">
                                     <div className={`w-2 h-2 rounded-full transition-all ${selectedZoneId === zone.id ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] scale-125' : 'bg-slate-200'}`} />
                                     {editingZoneId === zone.id ? (
-                                        <input autoFocus className="text-sm font-black uppercase bg-slate-100 px-2 py-0.5 rounded w-40" value={zoneNameInput} onChange={e => setZoneNameInput(e.target.value)} onBlur={saveZoneName} onKeyDown={e => e.key === 'Enter' && saveZoneName()} onClick={e => e.stopPropagation()} />
+                                        <input autoFocus className="text-sm font-black uppercase bg-slate-100 px-2 py-0.5 rounded w-40 text-slate-900" value={zoneNameInput} onChange={e => setZoneNameInput(e.target.value)} onBlur={saveZoneName} onKeyDown={e => e.key === 'Enter' && saveZoneName()} onClick={e => e.stopPropagation()} />
                                     ) : (
                                         <span className={`text-sm font-black uppercase text-slate-800 transition-opacity ${selectedZoneId !== zone.id && 'opacity-40'}`} onDoubleClick={(e) => { e.stopPropagation(); handleRenameZone(zone); }}>{zone.name}</span>
                                     )}
@@ -75,7 +74,7 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                                     <div key={item.id} className={`transition-all border rounded-2xl p-4 flex flex-col gap-3 cursor-pointer ${isEditing ? 'bg-white border-green-500 shadow-xl' : 'bg-slate-50 border-slate-100'}`} onClick={() => handleEditItem(item)}>
                                         <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-4">
-                                                <div className="text-xl">{item.type === 'tree' ? '🌳' : item.type === 'pot' ? '🪴' : '🌱'}</div>
+                                                <div className="text-xl">{item.type === 'tree' ? '🌳' : item.type === 'pot' ? '🪴' : item.type === 'flower' ? '🌸' : '🌱'}</div>
                                                 <div className="flex flex-col">
                                                     <span className="text-xs font-black text-slate-800 uppercase">{metadata?.species || item.type}</span>
                                                     <span className="text-[8px] font-bold text-slate-400">Lat: {item.lat.toFixed(5)}</span>
@@ -88,8 +87,24 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <div className="flex flex-col gap-1">
                                                         <label className="text-[9px] font-black text-slate-400 uppercase">Species</label>
-                                                        <input autoFocus className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs" value={editingMetadata?.species || ''} onChange={e => setEditingMetadata({ ...editingMetadata, species: e.target.value })} />
+                                                        <input autoFocus className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400" value={editingMetadata?.species || ''} placeholder="e.g. Rose" onChange={e => setEditingMetadata({ ...editingMetadata, species: e.target.value })} />
                                                     </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase">Variety</label>
+                                                        <input className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400" value={editingMetadata?.variety || ''} placeholder="e.g. Climbing" onChange={e => setEditingMetadata({ ...editingMetadata, variety: e.target.value })} />
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase">Date Planted</label>
+                                                        <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1 text-xs text-slate-900" value={editingMetadata?.datePlanted || ''} onChange={e => setEditingMetadata({ ...editingMetadata, datePlanted: e.target.value })} />
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase">Quantity</label>
+                                                        <input type="number" className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1 text-xs text-slate-900" value={editingMetadata?.quantity || 1} min={1} onChange={e => setEditingMetadata({ ...editingMetadata, quantity: parseInt(e.target.value) || 1 })} />
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase">Notes</label>
+                                                    <textarea className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400 resize-none" rows={2} value={editingMetadata?.notes || ''} placeholder="Any notes about this plant..." onChange={e => setEditingMetadata({ ...editingMetadata, notes: e.target.value })} />
                                                 </div>
                                                 <div className="flex gap-2">
                                                     <button onClick={handleSaveMetadata} className="flex-1 bg-green-500 text-white py-2 rounded-xl text-[10px] font-black uppercase">Save</button>

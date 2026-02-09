@@ -6,6 +6,7 @@ import { useSchematicInteraction } from '../Schematic/useSchematicInteraction';
 import { SchematicToolbar } from '../Schematic/SchematicToolbar';
 import { SchematicTools } from '../Schematic/SchematicTools';
 import { SchematicSidebar } from '../Schematic/SchematicSidebar';
+import { AIChat } from '../AI/AIChat';
 
 interface SchematicViewProps {
     zones: any[];
@@ -223,7 +224,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                             if (!isFinite(p.x) || !isFinite(p.y)) return null;
 
                                             const label = (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata)?.species || '';
-                                            let fontSize = item.type === 'tree' ? 2.2 : item.type === 'plant' ? 0.6 : 0.4;
+                                            let fontSize = item.type === 'tree' ? 2.2 : item.type === 'plant' ? 0.6 : item.type === 'flower' ? 0.5 : 0.4;
 
                                             return (
                                                 <g key={item.id} transform={`translate(${p.x}, ${p.y})`} className="cursor-pointer">
@@ -232,7 +233,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                                         handleEditItem(item);
                                                     }}>
                                                         {isSelected && <circle r={fontSize * 0.5} fill="none" stroke="#3b82f6" strokeWidth={0.1} strokeDasharray="0.5,0.5" className="animate-spin-slow" />}
-                                                        <text textAnchor="middle" dominantBaseline="central" fontSize={fontSize}>{item.type === 'tree' ? '🌳' : item.type === 'pot' ? '🪴' : '🌱'}</text>
+                                                        <text textAnchor="middle" dominantBaseline="central" fontSize={fontSize}>{item.type === 'tree' ? '🌳' : item.type === 'pot' ? '🪴' : item.type === 'flower' ? '🌸' : '🌱'}</text>
                                                         {label && <text y={fontSize * 0.8} textAnchor="middle" fontSize={fontSize * 0.15} className="font-black uppercase">{label}</text>}
                                                     </g>
                                                 </g>
@@ -266,6 +267,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                     setEditingMetadata={setEditingMetadata}
                     handleSaveMetadata={handleSaveMetadata}
                 />
+                <AIChat selectedZoneId={selectedZoneId} selectedItemId={selectedItemId} />
             </div>
         </div>
     );
