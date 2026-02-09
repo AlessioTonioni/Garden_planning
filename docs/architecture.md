@@ -1,59 +1,165 @@
-# Garden Planner Architecture
+# Garden Planner Pro - Architecture
 
-## Project Overview
-This project is a Next.js-based web application for planning and managing garden layouts. It uses a coordinate-based system to place items (plants, trees, pots) within defined zones (planting beds).
+## Overview
+Garden Planner Pro is a Next.js 14 application for planning and managing home gardens. It features a visual planner for placing plants, trees, and flowers within zones, a seedbed tracker for starting seeds, and an AI-powered gardening assistant.
+
+## Tech Stack
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 14 (App Router) |
+| Database | SQLite |
+| ORM | Prisma |
+| Styling | Tailwind CSS |
+| Icons | Lucide React |
+| Visualization | SVG (Planner), Leaflet (Setup) |
+| AI | Google Gemini API |
+
+---
 
 ## Directory Structure
 
-\`\`\`
+```
 /
-├── components/          # React components
-│   ├── Map/             # Main visualization components (SchematicView, Map)
-│   ├── Schematic/       # Refactored sub-components and hooks for the Schematic View
-│   └── ui/              # Shared UI elements (buttons, inputs)
-├── lib/                 # Utilities and helper functions
-│   ├── utils.ts         # General utilities (cn, math)
-│   └── db.ts            # Prisma client instance
-├── prisma/              # Database schema and migrations
-└── app/                 # Next.js App Router pages
-\`\`\`
+├── app/                    # Next.js App Router
+│   ├── api/               # API routes
+│   │   ├── chat/          # AI chat endpoint
+│   │   ├── seeds/         # Seed CRUD
+│   │   ├── seedlings/     # Seedling CRUD
+│   │   ├── zones/         # Zone CRUD
+│   │   └── items/         # Placement CRUD
+│   ├── layout.tsx         # Root layout
+│   └── page.tsx           # Home page
+│
+├── components/
+│   ├── AI/                # AI Chat widget
+│   │   └── AIChat.tsx
+│   ├── Map/               # Map-based views
+│   │   ├── Map.tsx        # Aerial Setup view (Leaflet)
+│   │   ├── SchematicView.tsx  # Planner view (SVG)
+│   │   ├── ItemIcons.ts   # Emoji icon definitions
+│   │   ├── ZoneEditor.tsx # Zone edit panel
+│   │   └── ...
+│   ├── Schematic/         # Planner subcomponents
+│   │   ├── SchematicSidebar.tsx
+│   │   ├── SchematicTools.tsx
+│   │   ├── SchematicToolbar.tsx
+│   │   ├── useSchematicViewport.ts
+│   │   └── useSchematicInteraction.ts
+│   ├── Seedbed/           # Seedbed tracker
+│   │   └── SeedbedView.tsx
+│   └── Navigation.tsx     # Top nav bar
+│
+├── lib/
+│   ├── prisma.ts          # Prisma client singleton
+│   ├── utils.ts           # Utilities (cn, math)
+│   └── ai/
+│       └── gardenContext.ts  # Context builder for AI
+│
+├── prisma/
+│   └── schema.prisma      # Database schema
+│
+└── docs/                  # Documentation
+```
 
-## Key Concepts
+---
 
-### 1. Geospatial Coordinate System
-- **Storage**: All positions are stored as `latitude` and `longitude`.
-- **Projection**: The application uses a local flat-plane projection (Equirectangular approximation) centered on the garden's centroid.
-- **Math**:
-  - `project(lat, lng) -> {x, y}`: Converts world coords to SVG/Canvas storage coords.
-  - `unproject(x, y) -> {lat, lng}`: Converts screen clicks back to world coords.
-- **Scale**: A scaling factor of `100000` is used to make small lat/lng deltas renderable as pixel-like units.
+## Database Schema
 
-### 2. Zones (GeoJSON)
-- Zones represent planting beds, lawns, or other areas.
-- **Format**: Stored as Standard GeoJSON `Polygon` features in the database.
-- **Rendering**: Rendered as SVG `<polygon>` elements.
+### Zone
+Represents areas in the garden (planting beds, lawns, paths, etc.).
 
-### 3. Data Flow
-- **Persistence**: SQLite database via Prisma ORM.
-- **State Management**:
-  - **Server Actions**: Handle DB writes (`createItem`, `updateZone`, etc.).
-  - **Local State**: React `useState` handles immediate UI feedback (dragging, panning).
-  - **Optimistic Updates**: Context or local state reflects changes immediately while the server action persists them.
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String | Unique ID |
+| geoJson | String | GeoJSON Polygon geometry |
+| type | String | Zone type (field, grass, path, etc.) |
+| name | String? | User-defined name |
+| lastWateredAt | DateTime? | Last watering date |
+| lastFertilizedAt | DateTime? | Last fertilizing date |
 
-## Tech Stack
-- **Framework**: Next.js 14 (App Router)
-- **Database**: SQLite (local)
-- **ORM**: Prisma
-- **Styling**: Tailwind CSS
-- **Icons**: Lucide React
-- **Visualization**: SVG (native) for the Schematic View
+### Placement
+Individual items placed within zones.
 
-## Components
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String | Unique ID |
+| zoneId | String | Parent zone |
+| type | String | `plant`, `tree`, `pot`, `flower` |
+| lat/lng | Float | Position coordinates |
+| metadata | JSON | Species, variety, notes, datePlanted, quantity |
 
-### SchematicView
-The core planner interface, now refactored into:
-- `useSchematicViewport`: Handles zoom, pan, rotation, and projection math.
-- `useSchematicInteraction`: Handles mouse/keyboard events, dragging, and tool placement.
-- `SchematicToolbar`: Bottom floating controls.
-- `SchematicTools`: Tool selection palette.
-- `SchematicSidebar`: Side panel for inventory and property editing.
+### Seed / Seedling
+Seedbed tracking models for starting seeds indoors.
+
+---
+
+## Core Concepts
+
+### Coordinate System
+- **Storage**: All positions use `latitude` and `longitude`
+- **Projection**: Equirectangular approximation with scale factor of 100,000
+- **Functions**:
+  - `project(lat, lng)` → `{x, y}` for rendering
+  - `unproject(x, y)` → `{lat, lng}` for clicks
+
+### Views
+1. **Planner View** (`SchematicView.tsx`): SVG-based visual editor for placing and managing plants
+2. **Setup View** (`Map.tsx`): Leaflet aerial map for zone creation/editing
+3. **Seedbed View** (`SeedbedView.tsx`): Track seeds and seedlings
+
+### Data Flow
+```
+User Action → Local State (optimistic) → API Route → Prisma → SQLite
+                                                          ↓
+                                                    Response → State Update
+```
+
+---
+
+## Key Components
+
+### SchematicView (Planner)
+Refactored into composable pieces:
+- `useSchematicViewport`: Zoom, pan, rotation, projection math
+- `useSchematicInteraction`: Mouse/keyboard events, tool placement
+- `SchematicToolbar`: Bottom controls (zoom, rotate, reset)
+- `SchematicTools`: Tool palette (plant, tree, pot, flower)
+- `SchematicSidebar`: Zone inventory and item editing
+
+### AIChat
+Floating chat widget with:
+- Context-aware prompts (All/Planner/Seedbed/Selection filters)
+- Editable system prompt with location and date
+- Debug mode to inspect prompts
+- Reset chat functionality
+
+### Keyboard Shortcuts
+| Key | Action |
+|-----|--------|
+| W/A/S/D | Pan the map |
+| Arrow keys | Move selected item/zone |
+| Mouse wheel | Zoom |
+| Click + drag | Pan (planner) |
+
+---
+
+## API Routes
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/zones` | GET/POST | List/create zones |
+| `/api/zones/[id]` | PATCH/DELETE | Update/delete zone |
+| `/api/items` | GET/POST | List/create placements |
+| `/api/items/[id]` | PATCH/DELETE | Update/delete placement |
+| `/api/seeds` | GET/POST | List/create seeds |
+| `/api/seedlings` | GET/POST | List/create seedlings |
+| `/api/chat` | POST | AI chat endpoint |
+
+---
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | SQLite connection string |
+| `GOOGLE_API_KEY` | Google Gemini API key for AI features |
