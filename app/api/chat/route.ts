@@ -6,7 +6,7 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
 
 export async function POST(req: Request) {
     try {
-        const { messages, contextFilter, selectedZoneId, selectedItemId } = await req.json();
+        const { messages, contextFilter, selectedZoneId, selectedItemId, systemPrompt } = await req.json();
         const latestMessage = messages[messages.length - 1];
 
         // Fetch relevant context
@@ -18,21 +18,15 @@ export async function POST(req: Request) {
 
         const contextString = JSON.stringify(context, null, 2);
 
-        const prompt = `
-      You are an expert Gardening Assistant for a garden planning application.
-      
-      CURRENT GARDEN CONTEXT:
-      ${contextString}
+        const prompt = `${systemPrompt || 'You are a helpful gardening assistant.'}
 
-      USER QUESTION:
-      ${latestMessage.content}
+CURRENT GARDEN CONTEXT:
+${contextString}
 
-      INSTRUCTIONS:
-      - Answer the user's question based on the provided garden context.
-      - Be concise and helpful.
-      - If suggesting plants, consider the zone's area and existing items.
-      - Format your response in Markdown.
-    `;
+USER QUESTION:
+${latestMessage.content}
+
+Respond helpfully based on the garden context above. Format in Markdown.`;
 
         const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
         const result = await model.generateContent(prompt);

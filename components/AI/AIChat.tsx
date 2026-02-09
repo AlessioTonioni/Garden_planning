@@ -1,13 +1,31 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Send, Bot, X, Sparkles, Sprout, Bug } from 'lucide-react';
+import { Send, Bot, X, Sparkles, Sprout, Bug, RotateCcw, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface AIChatProps {
     selectedZoneId?: string | null;
     selectedItemId?: string | null;
 }
+
+const DEFAULT_SYSTEM_PROMPT = `You are an expert AI Gardening Assistant for a home garden planning application.
+
+LOCATION: Zurich, Switzerland (temperate climate, USDA Zone 6-7)
+CURRENT DATE: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+
+YOUR EXPERTISE:
+- Seasonal planting schedules for temperate climates
+- Companion planting and crop rotation
+- Pest management and organic gardening
+- Soil health and fertilization
+- Space optimization for small gardens
+
+INSTRUCTIONS:
+- Answer questions based on the provided garden context
+- Give practical, actionable advice
+- Consider the current season when making recommendations
+- Format responses in Markdown for readability`;
 
 export function AIChat({ selectedZoneId, selectedItemId }: AIChatProps) {
     const [isOpen, setIsOpen] = useState(false);
@@ -17,6 +35,8 @@ export function AIChat({ selectedZoneId, selectedItemId }: AIChatProps) {
     const [contextFilter, setContextFilter] = useState<'all' | 'planner' | 'seedbed' | 'selection'>('all');
     const [lastPrompt, setLastPrompt] = useState<string | null>(null);
     const [showDebug, setShowDebug] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -41,14 +61,14 @@ export function AIChat({ selectedZoneId, selectedItemId }: AIChatProps) {
                     messages: [...messages, userMsg],
                     contextFilter,
                     selectedZoneId,
-                    selectedItemId
+                    selectedItemId,
+                    systemPrompt
                 })
             });
 
             const data = await response.json();
             if (data.error) throw new Error(data.error);
 
-            // Store the prompt for debugging
             if (data.prompt) {
                 setLastPrompt(data.prompt);
             }
@@ -60,6 +80,11 @@ export function AIChat({ selectedZoneId, selectedItemId }: AIChatProps) {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleReset = () => {
+        setMessages([]);
+        setLastPrompt(null);
     };
 
     return (
@@ -88,6 +113,35 @@ export function AIChat({ selectedZoneId, selectedItemId }: AIChatProps) {
                 </div>
             )}
 
+            {/* Settings Dialog */}
+            {showSettings && (
+                <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 pointer-events-auto" onClick={() => setShowSettings(false)}>
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-emerald-50">
+                            <div className="flex items-center gap-2 text-emerald-700">
+                                <Settings size={16} />
+                                <span className="font-bold text-sm">System Prompt</span>
+                            </div>
+                            <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600">
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4">
+                            <p className="text-xs text-slate-500 mb-2">This prompt is sent as context to the AI before each message. Edit it to customize the assistant's behavior.</p>
+                            <textarea
+                                className="w-full h-64 text-xs text-slate-700 font-mono bg-slate-50 p-4 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none"
+                                value={systemPrompt}
+                                onChange={e => setSystemPrompt(e.target.value)}
+                            />
+                        </div>
+                        <div className="p-4 border-t border-slate-100 flex gap-2">
+                            <button onClick={() => setSystemPrompt(DEFAULT_SYSTEM_PROMPT)} className="px-3 py-1.5 text-xs font-bold text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200">Reset to Default</button>
+                            <button onClick={() => setShowSettings(false)} className="flex-1 px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700">Done</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className={cn("fixed bottom-6 right-6 z-[60] flex flex-col items-end pointer-events-none")}>
 
                 {/* Chat Window */}
@@ -102,6 +156,12 @@ export function AIChat({ selectedZoneId, selectedItemId }: AIChatProps) {
                             <span className="font-bold text-sm">Garden Assistant</span>
                         </div>
                         <div className="flex items-center gap-2">
+                            <button onClick={handleReset} className="text-slate-400 hover:text-red-500" title="Reset chat">
+                                <RotateCcw size={14} />
+                            </button>
+                            <button onClick={() => setShowSettings(true)} className="text-slate-400 hover:text-emerald-600" title="Edit system prompt">
+                                <Settings size={14} />
+                            </button>
                             <button onClick={() => setShowDebug(true)} className="text-slate-400 hover:text-orange-500" title="Debug: View last prompt">
                                 <Bug size={14} />
                             </button>
