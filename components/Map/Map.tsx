@@ -7,7 +7,6 @@ import { useEffect, useRef, useState } from 'react';
 import EditControl from './EditControl';
 import { getZoneStyle } from './utils';
 import { ZoneTypeModal } from './ZoneTypeModal';
-import BackupControls from './BackupControls';
 import PlacementsLayer from './PlacementsLayer';
 import { ZoneEditor } from './ZoneEditor';
 import { SchematicView } from './SchematicView';
@@ -296,6 +295,7 @@ const Map: React.FC<MapProps> = ({ initialView = 'map' }) => {
                     onPlace={handlePlaceItem}
                     onUpdate={handleUpdateItem}
                     onDelete={handleDeleteItem}
+                    readOnly={true}
                 />
 
             </MapContainer>

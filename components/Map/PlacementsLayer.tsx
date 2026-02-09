@@ -13,22 +13,21 @@ interface PlacementsLayerProps {
     onPlace: (lat: number, lng: number) => void;
     onUpdate: (id: string, lat?: number, lng?: number, metadata?: any) => void;
     onDelete: (id: string) => void;
+    readOnly?: boolean;
 }
 
-const DraggableMarker = ({ item, onUpdate, onDelete }: { item: any, onUpdate: any, onDelete: any }) => {
-    const [position, setPosition] = useState({ lat: item.lat, lng: item.lng });
-
-    // Sync state with props only when not dragging (useEffect? No, simplier to just update key or rely on props)
-    // Actually the issue is usually that the optimistic update is slow.
-    // We can use useMemo for eventHandlers to capture current closure
+const DraggableMarker = ({ item, onUpdate, onDelete, readOnly }: { item: any, onUpdate: any, onDelete: any, readOnly?: boolean }) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // const [position, setPosition] = useState({ lat: item.lat, lng: item.lng });
 
     return (
         <Marker
             position={[item.lat, item.lng]} // Use prop position for SSOT
             icon={getItemIcon(item.type)}
-            draggable={true}
+            draggable={!readOnly}
             eventHandlers={{
                 dragend: (e) => {
+                    if (readOnly) return;
                     const marker = e.target;
                     const pos = marker.getLatLng();
                     onUpdate(item.id, pos.lat, pos.lng);
@@ -38,20 +37,22 @@ const DraggableMarker = ({ item, onUpdate, onDelete }: { item: any, onUpdate: an
                 }
             }}
         >
-            <ItemPopup
-                item={item}
-                onDelete={() => onDelete(item.id)}
-                onUpdate={(id, metadata) => onUpdate(id, undefined, undefined, metadata)}
-            />
+            {!readOnly && (
+                <ItemPopup
+                    item={item}
+                    onDelete={() => onDelete(item.id)}
+                    onUpdate={(id, metadata) => onUpdate(id, undefined, undefined, metadata)}
+                />
+            )}
         </Marker>
     )
 }
 
-const PlacementsLayer = ({ placements, activeZoneId, activeTool, onPlace, onUpdate, onDelete }: PlacementsLayerProps) => {
+const PlacementsLayer = ({ placements, activeZoneId, activeTool, onPlace, onUpdate, onDelete, readOnly = false }: PlacementsLayerProps) => {
     // Handle map clicks for placement
     useMapEvents({
         click(e) {
-            if (activeZoneId && activeTool) {
+            if (!readOnly && activeZoneId && activeTool) {
                 onPlace(e.latlng.lat, e.latlng.lng);
             }
         }
@@ -65,6 +66,7 @@ const PlacementsLayer = ({ placements, activeZoneId, activeTool, onPlace, onUpda
                     item={item}
                     onUpdate={onUpdate}
                     onDelete={onDelete}
+                    readOnly={readOnly}
                 />
             ))}
         </>

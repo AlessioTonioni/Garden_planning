@@ -57,19 +57,20 @@ export async function getGardenContext(opts: { includeSeedbed: boolean, selected
 
     if (opts.includeSeedbed) {
         const seeds = await prisma.seed.findMany();
-        const seedlings = await prisma.seedling.findMany();
+        const seedlings = await prisma.seedling.findMany({
+            include: { seed: true }
+        });
 
         seedbedData = {
             seeds: seeds.map((s: any) => ({
                 species: s.species,
-                count: s.count,
-                germinationDays: s.germinationTimeDays,
-                sproutDays: s.sproutTimeDays
+                packetQuantity: s.packetQuantity,
+                notes: s.notes
             })),
             seedlings: seedlings.map((s: any) => ({
-                species: s.species,
+                species: s.seed?.species || 'Unknown',
                 status: s.status,
-                planted: s.plantedDate ? new Date(s.plantedDate).toLocaleDateString() : undefined
+                seededAt: s.seededAt ? new Date(s.seededAt).toLocaleDateString() : undefined
             }))
         };
     }
