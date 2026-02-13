@@ -25,7 +25,8 @@ INSTRUCTIONS:
 - Answer questions based on the provided garden context
 - Give practical, actionable advice
 - Consider the current season when making recommendations
-- Format responses in Markdown for readability`;
+- Format responses in Markdown for readability
+- Try to answer in a concise and direct way`;
 
 export function AIChat({ selectedZoneId, selectedItemId }: AIChatProps) {
     const [isOpen, setIsOpen] = useState(false);
