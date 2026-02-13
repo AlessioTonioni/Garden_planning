@@ -46,6 +46,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
         project, unproject,
         viewBox, contentBounds,
         resetView,
+        centerView,
         cosFactor
     } = useSchematicViewport({ zones });
 
@@ -114,6 +115,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                 zoom={zoom} setZoom={setZoom}
                 showAll={showAll} setShowAll={setShowAll}
                 onReset={resetView}
+                onCenter={centerView}
                 onClose={onClose}
                 isPrimary={isPrimary}
             />

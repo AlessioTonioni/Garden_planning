@@ -104,6 +104,10 @@ export const useSchematicViewport = ({ zones }: UseSchematicViewportProps) => {
         setRotation(0);
     };
 
+    const centerView = () => {
+        setPanOffset({ x: 0, y: 0 });
+    };
+
     return {
         rotation, setRotation,
         zoom, setZoom,
@@ -111,6 +115,7 @@ export const useSchematicViewport = ({ zones }: UseSchematicViewportProps) => {
         project, unproject,
         viewBox, contentBounds,
         resetView,
+        centerView,
         scale, cosFactor, centerLat // Exported for interaction hook if needed
     };
 };

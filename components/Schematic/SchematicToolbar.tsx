@@ -1,5 +1,5 @@
 import React from 'react';
-import { Map as MapIcon } from 'lucide-react';
+import { Map as MapIcon, LocateFixed } from 'lucide-react';
 
 interface SchematicToolbarProps {
     rotation: number;
@@ -9,6 +9,7 @@ interface SchematicToolbarProps {
     showAll: boolean;
     setShowAll: (s: boolean) => void;
     onReset: () => void;
+    onCenter: () => void;
     onClose?: () => void;
     isPrimary?: boolean;
 }
@@ -18,6 +19,7 @@ export const SchematicToolbar: React.FC<SchematicToolbarProps> = ({
     zoom, setZoom,
     showAll, setShowAll,
     onReset,
+    onCenter,
     onClose,
     isPrimary
 }) => {
@@ -76,6 +78,13 @@ export const SchematicToolbar: React.FC<SchematicToolbarProps> = ({
 
             {/* Actions */}
             <div className="flex items-center gap-2 pl-1">
+                <button
+                    onClick={onCenter}
+                    className="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all active:scale-95"
+                    title="Center View"
+                >
+                    <LocateFixed size={16} />
+                </button>
                 <button
                     onClick={onReset}
                     className="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-95"
