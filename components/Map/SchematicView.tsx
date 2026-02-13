@@ -224,7 +224,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                             if (!isFinite(p.x) || !isFinite(p.y)) return null;
 
                                             const label = (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata)?.species || '';
-                                            let fontSize = item.type === 'tree' ? 2.2 : item.type === 'plant' ? 0.6 : item.type === 'flower' ? 0.5 : 0.4;
+                                            let fontSize = item.type === 'tree' ? 1.0 : item.type === 'plant' ? 0.8 : item.type === 'flower' ? 0.8 : 0.4;
 
                                             return (
                                                 <g key={item.id} transform={`translate(${p.x}, ${p.y})`} className="cursor-pointer">

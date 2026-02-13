@@ -87,7 +87,7 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <div className="flex flex-col gap-1">
                                                         <label className="text-[9px] font-black text-slate-400 uppercase">Species</label>
-                                                        <input autoFocus className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400" value={editingMetadata?.species || ''} placeholder="e.g. Rose" onChange={e => setEditingMetadata({ ...editingMetadata, species: e.target.value })} />
+                                                        <input className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400" value={editingMetadata?.species || ''} placeholder="e.g. Rose" onChange={e => setEditingMetadata({ ...editingMetadata, species: e.target.value })} />
                                                     </div>
                                                     <div className="flex flex-col gap-1">
                                                         <label className="text-[9px] font-black text-slate-400 uppercase">Variety</label>
