@@ -19,22 +19,41 @@ export async function POST(req: Request) {
 
         const contextString = JSON.stringify(context, null, 2);
 
-        const prompt = `${systemPrompt || 'You are a helpful gardening assistant.'}
+        // System instruction defines core behavior and includes the current garden context
+        // to ensure the model stays grounded in the user's specific garden setup.
+        const systemInstruction = `${systemPrompt || 'You are a helpful gardening assistant.'}
 
 CURRENT GARDEN CONTEXT:
 ${contextString}
 
-USER QUESTION:
-${latestMessage.content}
+Respond helpfully based on the context above and the conversation history. Format in Markdown.`;
 
-Respond helpfully based on the garden context above. Format in Markdown.`;
+        // Initialize model with system instructions
+        const model = genAI.getGenerativeModel({
+            model: "gemini-3-flash-preview",
+            systemInstruction
+        });
 
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
-        const result = await model.generateContent(prompt);
+        // Map messages into Gemini's history format (everything except the latest message)
+        const history = messages.slice(0, -1).map((m: any) => ({
+            role: m.role === 'user' ? 'user' : 'model',
+            parts: [{ text: m.content }]
+        }));
+
+        // Start a chat session with the provided history
+        const chat = model.startChat({ history });
+
+        // Send the latest message in the multi-turn context
+        const result = await chat.sendMessage(latestMessage.content);
         const response = await result.response;
         const text = response.text();
 
-        return NextResponse.json({ role: 'assistant', content: text, prompt });
+        // Return the assistant's response along with the context used (for debug purposes)
+        return NextResponse.json({
+            role: 'assistant',
+            content: text,
+            prompt: `[System Instruction]\n${systemInstruction}\n\n[Latest Message]\n${latestMessage.content}`
+        });
 
     } catch (error) {
         console.error("AI Error:", error);
