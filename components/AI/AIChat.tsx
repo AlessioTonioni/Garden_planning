@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 export interface AIChatProps {
     selectedZoneIds?: string[];
     selectedItemIds?: string[];
+    selectedSeedIds?: string[];
 }
 
 const DEFAULT_SYSTEM_PROMPT = `You are an expert AI Gardening Assistant for a home garden planning application.
@@ -28,7 +29,7 @@ INSTRUCTIONS:
 - Format responses in Markdown for readability
 - Try to answer in a concise and direct way`;
 
-export function AIChat({ selectedZoneIds = [], selectedItemIds = [] }: AIChatProps) {
+export function AIChat({ selectedZoneIds = [], selectedItemIds = [], selectedSeedIds = [] }: AIChatProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
     const [input, setInput] = useState('');
@@ -63,6 +64,7 @@ export function AIChat({ selectedZoneIds = [], selectedItemIds = [] }: AIChatPro
                     contextFilter,
                     selectedZoneIds,
                     selectedItemIds,
+                    selectedSeedIds,
                     systemPrompt
                 })
             });

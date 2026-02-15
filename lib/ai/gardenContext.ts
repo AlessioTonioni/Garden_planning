@@ -11,8 +11,9 @@ export interface GardenContext {
 export async function getGardenContext(opts: {
     includeSeedbed: boolean,
     selectedZoneIds?: string[],
-    selectedItemIds?: string[]
-}): Promise<GardenContext> {
+    selectedItemIds?: string[],
+    selectedSeedIds?: string[]
+}): Promise<GardenContext & { selectedSeeds?: any[] }> {
     // Fetch Planner Data
     const zones = await prisma.zone.findMany();
     const items = await prisma.placement.findMany();
@@ -77,8 +78,23 @@ export async function getGardenContext(opts: {
         };
     }
 
+    let selectedSeedsData = undefined;
+    if (opts.selectedSeedIds && opts.selectedSeedIds.length > 0) {
+        const selectedSeeds = await prisma.seed.findMany({
+            where: { id: { in: opts.selectedSeedIds } }
+        });
+        selectedSeedsData = selectedSeeds.map((s: any) => ({
+            species: s.species,
+            packetQuantity: s.packetQuantity,
+            notes: s.notes,
+            seedingPeriod: (s.seedingStart && s.seedingEnd) ? `${s.seedingStart} to ${s.seedingEnd}` : 'Not set',
+            harvestingPeriod: (s.harvestingStart && s.harvestingEnd) ? `${s.harvestingStart} to ${s.harvestingEnd}` : 'Not set'
+        }));
+    }
+
     return {
         zones: simplifiedZones,
-        seedbed: seedbedData
+        seedbed: seedbedData,
+        selectedSeeds: selectedSeedsData
     };
 }

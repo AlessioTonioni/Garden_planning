@@ -15,6 +15,7 @@ import {
     CheckCircle2,
     AlertCircle,
     Save,
+    Search,
     X as CloseIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -49,11 +50,22 @@ interface Seedling {
     seed?: Seed;
 }
 
-const SeedbedView = () => {
+interface SeedbedViewProps {
+    selectedSeedIds?: string[];
+    setSelectedSeedIds?: React.Dispatch<React.SetStateAction<string[]>>;
+}
+
+const SeedbedView = ({ selectedSeedIds = [], setSelectedSeedIds = () => { } }: SeedbedViewProps) => {
     const [seeds, setSeeds] = useState<Seed[]>([]);
     const [seedlings, setSeedlings] = useState<Seedling[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'inventory' | 'active'>('active');
+
+    const toggleSeedSelection = (id: string) => {
+        setSelectedSeedIds(prev =>
+            prev.includes(id) ? prev.filter(seedId => seedId !== id) : [...prev, id]
+        );
+    };
 
     // Modal states
     const [isSeedModalOpen, setIsSeedModalOpen] = useState(false);
@@ -69,6 +81,7 @@ const SeedbedView = () => {
     // Sorting and Filtering states
     const [sortConfig, setSortConfig] = useState<{ key: keyof Seed | 'none', direction: 'asc' | 'desc' }>({ key: 'species', direction: 'asc' });
     const [showOnlySowable, setShowOnlySowable] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const currentMonth = new Date().getMonth() + 1; // 1-12
 
     const fetchData = async () => {
@@ -282,6 +295,14 @@ const SeedbedView = () => {
                     return currentMonth >= seed.seedingStart || currentMonth <= seed.seedingEnd;
                 }
             });
+        }
+
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(seed =>
+                seed.species.toLowerCase().includes(query) ||
+                (seed.notes?.toLowerCase() || '').includes(query)
+            );
         }
 
         if (sortConfig.key === 'none') return filtered;
@@ -523,11 +544,29 @@ const SeedbedView = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4 mb-4">
+                    <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+                        <div className="relative flex-1 group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+                            <input
+                                type="text"
+                                placeholder="Search by species or notes..."
+                                className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 transition-all shadow-sm"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                >
+                                    <CloseIcon size={14} />
+                                </button>
+                            )}
+                        </div>
                         <button
                             onClick={() => setShowOnlySowable(!showOnlySowable)}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border",
+                                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border shrink-0",
                                 showOnlySowable
                                     ? "bg-green-600 text-white border-green-600 shadow-lg shadow-green-100"
                                     : "bg-white text-slate-600 border-slate-200 hover:border-green-400"
@@ -543,6 +582,7 @@ const SeedbedView = () => {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-100">
+                                        <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest w-10">Select</th>
                                         <th
                                             className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
                                             onClick={() => toggleSort('species')}
@@ -573,61 +613,75 @@ const SeedbedView = () => {
                                 <tbody>
                                     {sortedSeeds.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="px-8 py-20 text-center text-slate-400 font-medium italic">
+                                            <td colSpan={6} className="px-8 py-20 text-center text-slate-400 font-medium italic">
                                                 {showOnlySowable ? "No seeds available to sow this month." : "No seeds found. Time to go shopping?"}
                                             </td>
                                         </tr>
                                     ) : (
-                                        sortedSeeds.map(seed => (
-                                            <tr key={seed.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
-                                                <td className="px-8 py-6">
-                                                    <div className="font-bold text-slate-900">{seed.species}</div>
-                                                    {seed.expiryDate && (
-                                                        <div className="text-[10px] text-slate-400 uppercase font-bold tracking-tight">Expires {new Date(seed.expiryDate).toLocaleDateString()}</div>
-                                                    )}
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <span className="bg-slate-100 px-3 py-1 rounded-lg text-sm font-bold text-slate-700">
-                                                        {seed.packetQuantity}
-                                                    </span>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <div className="text-sm font-bold text-slate-600 flex items-center gap-1.5">
-                                                        <Calendar size={14} className="text-green-500" />
-                                                        {formatMonthRange(seed.seedingStart, seed.seedingEnd)}
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <div className="text-sm font-bold text-slate-600 flex items-center gap-1.5">
-                                                        <Package size={14} className="text-amber-500" />
-                                                        {formatMonthRange(seed.harvestingStart, seed.harvestingEnd)}
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            title="Sow Seeds"
-                                                            onClick={() => openSowModal(seed)}
-                                                            className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all shadow-sm active:scale-90"
-                                                        >
-                                                            <Sprout size={16} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => openEditSeedModal(seed)}
-                                                            className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-90"
-                                                        >
-                                                            <Edit2 size={16} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteSeed(seed.id)}
-                                                            className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-90"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))
+                                        sortedSeeds.map(seed => {
+                                            const isSelected = selectedSeedIds.includes(seed.id);
+                                            return (
+                                                <tr key={seed.id} className={cn(
+                                                    "border-b border-slate-50 transition-colors group",
+                                                    isSelected ? "bg-blue-50/50" : "hover:bg-slate-50/50"
+                                                )}>
+                                                    <td className="px-8 py-6">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() => toggleSeedSelection(seed.id)}
+                                                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                                        />
+                                                    </td>
+                                                    <td className="px-8 py-6">
+                                                        <div className="font-bold text-slate-900">{seed.species}</div>
+                                                        {seed.expiryDate && (
+                                                            <div className="text-[10px] text-slate-400 uppercase font-bold tracking-tight">Expires {new Date(seed.expiryDate).toLocaleDateString()}</div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-8 py-6">
+                                                        <span className="bg-slate-100 px-3 py-1 rounded-lg text-sm font-bold text-slate-700">
+                                                            {seed.packetQuantity}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-8 py-6">
+                                                        <div className="text-sm font-bold text-slate-600 flex items-center gap-1.5">
+                                                            <Calendar size={14} className="text-green-500" />
+                                                            {formatMonthRange(seed.seedingStart, seed.seedingEnd)}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-6">
+                                                        <div className="text-sm font-bold text-slate-600 flex items-center gap-1.5">
+                                                            <Package size={14} className="text-amber-500" />
+                                                            {formatMonthRange(seed.harvestingStart, seed.harvestingEnd)}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-6">
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                title="Sow Seeds"
+                                                                onClick={() => openSowModal(seed)}
+                                                                className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all shadow-sm active:scale-90"
+                                                            >
+                                                                <Sprout size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => openEditSeedModal(seed)}
+                                                                className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-90"
+                                                            >
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteSeed(seed.id)}
+                                                                className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-90"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
                                     )}
                                 </tbody>
                             </table>

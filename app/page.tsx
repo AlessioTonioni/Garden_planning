@@ -10,6 +10,7 @@ export default function Home() {
     const [activeView, setActiveView] = useState<'planner' | 'seedbed' | 'setup'>('planner');
     const [selectedZoneIds, setSelectedZoneIds] = useState<string[]>([]);
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+    const [selectedSeedIds, setSelectedSeedIds] = useState<string[]>([]);
 
     return (
         <main className="w-full h-full relative overflow-hidden bg-slate-50">
@@ -28,7 +29,10 @@ export default function Home() {
                     </div>
                 ) : activeView === 'seedbed' ? (
                     <div className="w-full h-full animate-in fade-in slide-in-from-bottom-8 duration-500 overflow-y-auto pt-24">
-                        <SeedbedView />
+                        <SeedbedView
+                            selectedSeedIds={selectedSeedIds}
+                            setSelectedSeedIds={setSelectedSeedIds}
+                        />
                     </div>
                 ) : (
                     <div className="w-full h-full animate-in fade-in duration-500">
@@ -43,7 +47,11 @@ export default function Home() {
                 )}
             </div>
 
-            <AIChat selectedZoneIds={selectedZoneIds} selectedItemIds={selectedItemIds} />
+            <AIChat
+                selectedZoneIds={selectedZoneIds}
+                selectedItemIds={selectedItemIds}
+                selectedSeedIds={selectedSeedIds}
+            />
         </main>
     );
 }
