@@ -16,16 +16,20 @@ export async function POST(req: Request) {
             generationConfig: { responseMimeType: "application/json" }
         });
 
-        const prompt = `Extract seed packet information from the images. 
+        const prompt = `Extract seed packet information from the images. If some information are missing you can integrate based on your common knowledge or search results. Independently of the language on the package please extract and translate all information to english. 
 Extract:
-- species: string (e.g. "Carrot 'Nantes 2'")
+- species: string (variety name)
 - packetQuantity: number (default 10)
 - acquiredAt: string (YYYY-MM-DD, default "${new Date().toISOString().split('T')[0]}")
 - expiryDate: string | null (YYYY-MM-DD)
-- notes: string (summarize sowing depth, height, etc.)
+- seedingStart: number | null (1-12, month when sowing starts)
+- seedingEnd: number | null (1-12, month when sowing ends)
+- harvestingStart: number | null (1-12, month when harvesting starts)
+- harvestingEnd: number | null (1-12, month when harvesting ends)
+- notes: string (other info)
 
 Return JSON matching this schema:
-{"species": string, "packetQuantity": number, "acquiredAt": string, "expiryDate": string | null, "notes": string}`;
+{"species": string, "packetQuantity": number, "acquiredAt": string, "expiryDate": string | null, "seedingStart": number | null, "seedingEnd": number | null, "harvestingStart": number | null, "harvestingEnd": number | null, "notes": string}`;
 
         const imageParts = images.map((base64: string) => ({
             inlineData: {

@@ -17,7 +17,10 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { species, packetQuantity, acquiredAt, expiryDate, notes } = body;
+        const {
+            species, packetQuantity, acquiredAt, expiryDate, notes,
+            seedingStart, seedingEnd, harvestingStart, harvestingEnd
+        } = body;
 
         if (!species) {
             return NextResponse.json({ error: 'Species is required' }, { status: 400 });
@@ -29,7 +32,11 @@ export async function POST(request: Request) {
                 packetQuantity: Number(packetQuantity) || 0,
                 acquiredAt: acquiredAt ? new Date(acquiredAt) : new Date(),
                 expiryDate: expiryDate ? new Date(expiryDate) : null,
-                notes
+                notes,
+                seedingStart: seedingStart !== undefined ? Number(seedingStart) : null,
+                seedingEnd: seedingEnd !== undefined ? Number(seedingEnd) : null,
+                harvestingStart: harvestingStart !== undefined ? Number(harvestingStart) : null,
+                harvestingEnd: harvestingEnd !== undefined ? Number(harvestingEnd) : null,
             }
         });
 

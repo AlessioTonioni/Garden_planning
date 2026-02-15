@@ -28,6 +28,10 @@ interface Seed {
     acquiredAt: string;
     expiryDate: string | null;
     notes: string | null;
+    seedingStart: number | null;
+    seedingEnd: number | null;
+    harvestingStart: number | null;
+    harvestingEnd: number | null;
     seedlings: Seedling[];
 }
 
@@ -61,6 +65,11 @@ const SeedbedView = () => {
     const [selectedSeedForSowing, setSelectedSeedForSowing] = useState<Seed | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    // Sorting and Filtering states
+    const [sortConfig, setSortConfig] = useState<{ key: keyof Seed | 'none', direction: 'asc' | 'desc' }>({ key: 'species', direction: 'asc' });
+    const [showOnlySowable, setShowOnlySowable] = useState(false);
+    const currentMonth = new Date().getMonth() + 1; // 1-12
 
     const fetchData = async () => {
         try {
@@ -150,6 +159,10 @@ const SeedbedView = () => {
                     packetQuantity: data.packetQuantity || 10,
                     acquiredAt: data.acquiredAt || new Date().toISOString().split('T')[0],
                     expiryDate: data.expiryDate || null,
+                    seedingStart: data.seedingStart || null,
+                    seedingEnd: data.seedingEnd || null,
+                    harvestingStart: data.harvestingStart || null,
+                    harvestingEnd: data.harvestingEnd || null,
                     notes: data.notes || ''
                 });
                 setIsSeedModalOpen(true);
@@ -247,6 +260,59 @@ const SeedbedView = () => {
             transplantedAt: seedling.transplantedAt ? new Date(seedling.transplantedAt).toISOString().split('T')[0] : null
         });
         setIsSeedlingModalOpen(true);
+    };
+
+    const toggleSort = (key: keyof Seed) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const getSortedAndFilteredSeeds = () => {
+        let filtered = seeds;
+
+        if (showOnlySowable) {
+            filtered = seeds.filter(seed => {
+                if (!seed.seedingStart || !seed.seedingEnd) return false;
+                if (seed.seedingStart <= seed.seedingEnd) {
+                    return currentMonth >= seed.seedingStart && currentMonth <= seed.seedingEnd;
+                } else {
+                    // Overlap year (e.g. Oct to Feb)
+                    return currentMonth >= seed.seedingStart || currentMonth <= seed.seedingEnd;
+                }
+            });
+        }
+
+        if (sortConfig.key === 'none') return filtered;
+
+        const key = sortConfig.key as keyof Seed;
+
+        return [...filtered].sort((a, b) => {
+            const aVal = a[key];
+            const bVal = b[key];
+
+            if (aVal === bVal) return 0;
+            if (aVal === null || aVal === undefined) return 1;
+            if (bVal === null || bVal === undefined) return -1;
+
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    };
+
+    const sortedSeeds = getSortedAndFilteredSeeds();
+
+    const monthNames = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+
+    const formatMonthRange = (start: number | null, end: number | null) => {
+        if (!start || !end) return "Not set";
+        if (start === end) return monthNames[start - 1];
+        return `${monthNames[start - 1]} - ${monthNames[end - 1]}`;
     };
 
     if (loading) {
@@ -457,45 +523,85 @@ const SeedbedView = () => {
                         </div>
                     </div>
 
+                    <div className="flex items-center gap-4 mb-4">
+                        <button
+                            onClick={() => setShowOnlySowable(!showOnlySowable)}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border",
+                                showOnlySowable
+                                    ? "bg-green-600 text-white border-green-600 shadow-lg shadow-green-100"
+                                    : "bg-white text-slate-600 border-slate-200 hover:border-green-400"
+                            )}
+                        >
+                            <Calendar size={16} />
+                            Available to sow now ({monthNames[currentMonth - 1]})
+                        </button>
+                    </div>
+
                     <div className="bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-sm">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-100">
-                                        <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Species</th>
-                                        <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest">In Stock</th>
-                                        <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Acquired</th>
-                                        <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Expiry</th>
+                                        <th
+                                            className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
+                                            onClick={() => toggleSort('species')}
+                                        >
+                                            Species {sortConfig.key === 'species' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th
+                                            className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
+                                            onClick={() => toggleSort('packetQuantity')}
+                                        >
+                                            In Stock {sortConfig.key === 'packetQuantity' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th
+                                            className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
+                                            onClick={() => toggleSort('seedingStart')}
+                                        >
+                                            Seeding {sortConfig.key === 'seedingStart' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th
+                                            className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
+                                            onClick={() => toggleSort('harvestingStart')}
+                                        >
+                                            Harvesting {sortConfig.key === 'harvestingStart' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                        </th>
                                         <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {seeds.length === 0 ? (
+                                    {sortedSeeds.length === 0 ? (
                                         <tr>
                                             <td colSpan={5} className="px-8 py-20 text-center text-slate-400 font-medium italic">
-                                                No seeds found. Time to go shopping?
+                                                {showOnlySowable ? "No seeds available to sow this month." : "No seeds found. Time to go shopping?"}
                                             </td>
                                         </tr>
                                     ) : (
-                                        seeds.map(seed => (
+                                        sortedSeeds.map(seed => (
                                             <tr key={seed.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
-                                                <td className="px-8 py-6 font-bold text-slate-900">{seed.species}</td>
+                                                <td className="px-8 py-6">
+                                                    <div className="font-bold text-slate-900">{seed.species}</div>
+                                                    {seed.expiryDate && (
+                                                        <div className="text-[10px] text-slate-400 uppercase font-bold tracking-tight">Expires {new Date(seed.expiryDate).toLocaleDateString()}</div>
+                                                    )}
+                                                </td>
                                                 <td className="px-8 py-6">
                                                     <span className="bg-slate-100 px-3 py-1 rounded-lg text-sm font-bold text-slate-700">
                                                         {seed.packetQuantity}
                                                     </span>
                                                 </td>
-                                                <td className="px-8 py-6 text-slate-500 text-sm italic">
-                                                    {new Date(seed.acquiredAt).toLocaleDateString()}
+                                                <td className="px-8 py-6">
+                                                    <div className="text-sm font-bold text-slate-600 flex items-center gap-1.5">
+                                                        <Calendar size={14} className="text-green-500" />
+                                                        {formatMonthRange(seed.seedingStart, seed.seedingEnd)}
+                                                    </div>
                                                 </td>
                                                 <td className="px-8 py-6">
-                                                    {seed.expiryDate ? (
-                                                        <span className="text-slate-500 text-sm">
-                                                            {new Date(seed.expiryDate).toLocaleDateString()}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-slate-300 text-xs italic">Not set</span>
-                                                    )}
+                                                    <div className="text-sm font-bold text-slate-600 flex items-center gap-1.5">
+                                                        <Package size={14} className="text-amber-500" />
+                                                        {formatMonthRange(seed.harvestingStart, seed.harvestingEnd)}
+                                                    </div>
                                                 </td>
                                                 <td className="px-8 py-6">
                                                     <div className="flex gap-2">
@@ -566,6 +672,50 @@ const SeedbedView = () => {
                                     value={editingSeed?.acquiredAt || ''}
                                     onChange={e => setEditingSeed({ ...editingSeed!, acquiredAt: e.target.value })}
                                 />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Seeding Period</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-2 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                                        value={editingSeed?.seedingStart || ''}
+                                        onChange={e => setEditingSeed({ ...editingSeed!, seedingStart: parseInt(e.target.value) || null })}
+                                    >
+                                        <option value="">Start</option>
+                                        {monthNames.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+                                    </select>
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-2 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                                        value={editingSeed?.seedingEnd || ''}
+                                        onChange={e => setEditingSeed({ ...editingSeed!, seedingEnd: parseInt(e.target.value) || null })}
+                                    >
+                                        <option value="">End</option>
+                                        {monthNames.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Harvest Period</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-2 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                                        value={editingSeed?.harvestingStart || ''}
+                                        onChange={e => setEditingSeed({ ...editingSeed!, harvestingStart: parseInt(e.target.value) || null })}
+                                    >
+                                        <option value="">Start</option>
+                                        {monthNames.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+                                    </select>
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-2 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                                        value={editingSeed?.harvestingEnd || ''}
+                                        onChange={e => setEditingSeed({ ...editingSeed!, harvestingEnd: parseInt(e.target.value) || null })}
+                                    >
+                                        <option value="">End</option>
+                                        {monthNames.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+                                    </select>
+                                </div>
                             </div>
                         </div>
                         <div className="flex flex-col gap-1.5">

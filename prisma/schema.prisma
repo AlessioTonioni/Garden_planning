@@ -47,17 +47,22 @@ model Placement {
 }
 
 model Seed {
-  id             String    @id @default(cuid())
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
   
-  species        String
-  packetQuantity Int       @default(0)
-  acquiredAt     DateTime  @default(now())
-  expiryDate     DateTime?
-  notes          String?
+  species          String
+  packetQuantity   Int       @default(0)
+  acquiredAt       DateTime  @default(now())
+  expiryDate       DateTime?
+  notes            String?
   
-  seedlings      Seedling[]
+  seedingStart     Int?
+  seedingEnd       Int?
+  harvestingStart  Int?
+  harvestingEnd    Int?
+  
+  seedlings        Seedling[]
 }
 
 model Seedling {

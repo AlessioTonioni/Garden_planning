@@ -8,7 +8,10 @@ export async function PATCH(
     try {
         const { id } = await params;
         const body = await request.json();
-        const { species, packetQuantity, acquiredAt, expiryDate, notes } = body;
+        const {
+            species, packetQuantity, acquiredAt, expiryDate, notes,
+            seedingStart, seedingEnd, harvestingStart, harvestingEnd
+        } = body;
 
         const updated = await prisma.seed.update({
             where: { id },
@@ -17,7 +20,11 @@ export async function PATCH(
                 packetQuantity: packetQuantity !== undefined ? Number(packetQuantity) : undefined,
                 acquiredAt: acquiredAt ? new Date(acquiredAt) : undefined,
                 expiryDate: expiryDate ? new Date(expiryDate) : (expiryDate === null ? null : undefined),
-                notes
+                notes,
+                seedingStart: seedingStart !== undefined ? (seedingStart === null ? null : Number(seedingStart)) : undefined,
+                seedingEnd: seedingEnd !== undefined ? (seedingEnd === null ? null : Number(seedingEnd)) : undefined,
+                harvestingStart: harvestingStart !== undefined ? (harvestingStart === null ? null : Number(harvestingStart)) : undefined,
+                harvestingEnd: harvestingEnd !== undefined ? (harvestingEnd === null ? null : Number(harvestingEnd)) : undefined,
             }
         });
 
