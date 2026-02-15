@@ -24,9 +24,19 @@ const iconFix = () => {
 
 interface MapProps {
     initialView?: 'map' | 'schematic';
+    globalSelectedZoneIds?: string[];
+    setGlobalSelectedZoneIds?: React.Dispatch<React.SetStateAction<string[]>>;
+    globalSelectedItemIds?: string[];
+    setGlobalSelectedItemIds?: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-const Map: React.FC<MapProps> = ({ initialView = 'map' }) => {
+const Map: React.FC<MapProps> = ({
+    initialView = 'map',
+    globalSelectedZoneIds,
+    setGlobalSelectedZoneIds,
+    globalSelectedItemIds,
+    setGlobalSelectedItemIds
+}) => {
     // @ts-ignore
     const featureGroupRef = useRef<L.FeatureGroup | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -229,6 +239,10 @@ const Map: React.FC<MapProps> = ({ initialView = 'map' }) => {
                     onUpdateItem={handleUpdateItem}
                     onUpdateZone={handleUpdateZone}
                     isPrimary={initialView === 'schematic'}
+                    globalSelectedZoneIds={globalSelectedZoneIds}
+                    setGlobalSelectedZoneIds={setGlobalSelectedZoneIds}
+                    globalSelectedItemIds={globalSelectedItemIds}
+                    setGlobalSelectedItemIds={setGlobalSelectedItemIds}
                 />
             )}
 

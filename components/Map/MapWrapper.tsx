@@ -9,10 +9,20 @@ const Map = dynamic(() => import('./Map'), {
 
 interface MapWrapperProps {
     initialView?: 'map' | 'schematic';
+    selectedZoneIds: string[];
+    setSelectedZoneIds: React.Dispatch<React.SetStateAction<string[]>>;
+    selectedItemIds: string[];
+    setSelectedItemIds: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-const MapWrapper = ({ initialView = 'map' }: MapWrapperProps) => {
-    return <Map initialView={initialView} />;
+const MapWrapper = ({ initialView = 'map', selectedZoneIds, setSelectedZoneIds, selectedItemIds, setSelectedItemIds }: MapWrapperProps) => {
+    return <Map
+        initialView={initialView}
+        globalSelectedZoneIds={selectedZoneIds}
+        setGlobalSelectedZoneIds={setSelectedZoneIds}
+        globalSelectedItemIds={selectedItemIds}
+        setGlobalSelectedItemIds={setSelectedItemIds}
+    />;
 };
 
 export default MapWrapper;

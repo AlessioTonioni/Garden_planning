@@ -17,17 +17,31 @@ interface SchematicViewProps {
     onUpdateItem: (id: string, lat?: number, lng?: number, metadata?: any) => void;
     onUpdateZone: (id: string, updates: any) => void;
     isPrimary?: boolean;
+    globalSelectedZoneIds?: string[];
+    setGlobalSelectedZoneIds?: React.Dispatch<React.SetStateAction<string[]>>;
+    globalSelectedItemIds?: string[];
+    setGlobalSelectedItemIds?: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, onUpdateItem, onUpdateZone, isPrimary = false }: SchematicViewProps) => {
+export const SchematicView = ({
+    zones, items, onClose, onPlace, onDeleteItem, onUpdateItem, onUpdateZone,
+    isPrimary = false,
+    globalSelectedZoneIds = [],
+    setGlobalSelectedZoneIds = (() => { }) as any,
+    globalSelectedItemIds = [],
+    setGlobalSelectedItemIds = (() => { }) as any
+}: SchematicViewProps) => {
+
+    const selectedZoneIds = globalSelectedZoneIds;
+    const setSelectedZoneIds = setGlobalSelectedZoneIds;
+    const selectedItemIds = globalSelectedItemIds;
+    const setSelectedItemIds = setGlobalSelectedItemIds;
 
     // --- STATE ---
     const [localZones, setLocalZones] = useState(zones);
     const [localItems, setLocalItems] = useState(items);
     const [showAll, setShowAll] = useState(false);
-    const [selectedZoneIds, setSelectedZoneIds] = useState<string[]>([]);
     const [activeTool, setActiveTool] = useState<string | null>(null);
-    const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
     const [editingMetadata, setEditingMetadata] = useState<any>(null);
     const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
     const [zoneNameInput, setZoneNameInput] = useState('');
@@ -289,7 +303,6 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                     setEditingMetadata={setEditingMetadata}
                     handleSaveMetadata={handleSaveMetadata}
                 />
-                <AIChat selectedZoneIds={selectedZoneIds} selectedItemIds={selectedItemIds} />
             </div>
         </div>
     );
