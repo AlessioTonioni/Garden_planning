@@ -59,6 +59,8 @@ const SeedbedView = () => {
     const [editingSeed, setEditingSeed] = useState<Partial<Seed> | null>(null);
     const [editingSeedling, setEditingSeedling] = useState<Partial<Seedling> | null>(null);
     const [selectedSeedForSowing, setSelectedSeedForSowing] = useState<Seed | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const fetchData = async () => {
         try {
@@ -114,6 +116,52 @@ const SeedbedView = () => {
             if (res.ok) fetchData();
         } catch (error) {
             console.error('Failed to delete seed:', error);
+        }
+    };
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        setIsAnalyzing(true);
+        const images: string[] = [];
+
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const base64 = await new Promise<string>((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(file);
+                });
+                images.push(base64);
+            }
+
+            const res = await fetch('/api/seeds/extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ images })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setEditingSeed({
+                    species: data.species || '',
+                    packetQuantity: data.packetQuantity || 10,
+                    acquiredAt: data.acquiredAt || new Date().toISOString().split('T')[0],
+                    expiryDate: data.expiryDate || null,
+                    notes: data.notes || ''
+                });
+                setIsSeedModalOpen(true);
+            } else {
+                alert('Failed to analyze seed packet. Please try again or add manually.');
+            }
+        } catch (error) {
+            console.error('Error analyzing photo:', error);
+            alert('An error occurred during image analysis.');
+        } finally {
+            setIsAnalyzing(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -373,12 +421,40 @@ const SeedbedView = () => {
                             <Package size={22} className="text-blue-500" />
                             Seed Collection
                         </h3>
-                        <button
-                            onClick={openAddSeedModal}
-                            className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100 active:scale-95"
-                        >
-                            <Plus size={18} /> Add Seed Packet
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept="image/*"
+                                multiple
+                                capture="environment"
+                                onChange={handlePhotoUpload}
+                            />
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isAnalyzing}
+                                className="bg-slate-100 text-slate-700 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all flex items-center gap-2 border border-slate-200 disabled:opacity-50"
+                            >
+                                {isAnalyzing ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                                        Scanning...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Leaf size={18} className="text-green-600" />
+                                        Scan Seed Packet
+                                    </>
+                                )}
+                            </button>
+                            <button
+                                onClick={openAddSeedModal}
+                                className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100 active:scale-95"
+                            >
+                                <Plus size={18} /> Add Seed Packet
+                            </button>
+                        </div>
                     </div>
 
                     <div className="bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-sm">
@@ -491,6 +567,15 @@ const SeedbedView = () => {
                                     onChange={e => setEditingSeed({ ...editingSeed!, acquiredAt: e.target.value })}
                                 />
                             </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Notes</label>
+                            <textarea
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all min-h-[80px]"
+                                value={editingSeed?.notes || ''}
+                                onChange={e => setEditingSeed({ ...editingSeed!, notes: e.target.value })}
+                                placeholder="Sowing depth, spacing, or other info..."
+                            />
                         </div>
                     </div>
                     <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-xl active:scale-[0.98]">
