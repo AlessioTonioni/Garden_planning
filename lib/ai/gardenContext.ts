@@ -8,7 +8,11 @@ export interface GardenContext {
     };
 }
 
-export async function getGardenContext(opts: { includeSeedbed: boolean, selectedZoneId?: string | null, selectedItemId?: string | null }): Promise<GardenContext> {
+export async function getGardenContext(opts: {
+    includeSeedbed: boolean,
+    selectedZoneIds?: string[],
+    selectedItemIds?: string[]
+}): Promise<GardenContext> {
     // Fetch Planner Data
     const zones = await prisma.zone.findMany();
     const items = await prisma.placement.findMany();
@@ -17,17 +21,15 @@ export async function getGardenContext(opts: { includeSeedbed: boolean, selected
     let filteredZones = zones;
     let filteredItems = items;
 
-    if (opts.selectedZoneId) {
-        filteredZones = zones.filter((z: any) => z.id === opts.selectedZoneId);
-        filteredItems = items.filter((i: any) => i.zoneId === opts.selectedZoneId);
-    } else if (opts.selectedItemId) {
-        filteredItems = items.filter((i: any) => i.id === opts.selectedItemId);
-        const item = items.find((i: any) => i.id === opts.selectedItemId);
-        if (item) {
-            filteredZones = zones.filter((z: any) => z.id === item.zoneId);
-        } else {
-            filteredZones = [];
-        }
+    if (opts.selectedZoneIds && opts.selectedZoneIds.length > 0) {
+        filteredZones = zones.filter((z: any) => opts.selectedZoneIds!.includes(z.id));
+        filteredItems = items.filter((i: any) => opts.selectedZoneIds!.includes(i.zoneId));
+    } else if (opts.selectedItemIds && opts.selectedItemIds.length > 0) {
+        filteredItems = items.filter((i: any) => opts.selectedItemIds!.includes(i.id));
+        const selectedParentZoneIds = Array.from(new Set(
+            filteredItems.map((i: any) => i.zoneId).filter(Boolean)
+        ));
+        filteredZones = zones.filter((z: any) => selectedParentZoneIds.includes(z.id));
     }
 
     // Build a human-readable context (minimal data for the AI, no IDs/coords)

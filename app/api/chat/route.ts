@@ -6,14 +6,14 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
 
 export async function POST(req: Request) {
     try {
-        const { messages, contextFilter, selectedZoneId, selectedItemId, systemPrompt } = await req.json();
+        const { messages, contextFilter, selectedZoneIds, selectedItemIds, systemPrompt } = await req.json();
         const latestMessage = messages[messages.length - 1];
 
         // Fetch relevant context
         const context = await getGardenContext({
             includeSeedbed: contextFilter === 'all' || contextFilter === 'seedbed',
-            selectedZoneId: contextFilter === 'selection' ? selectedZoneId : undefined,
-            selectedItemId: contextFilter === 'selection' ? selectedItemId : undefined
+            selectedZoneIds: contextFilter === 'selection' ? selectedZoneIds : [],
+            selectedItemIds: contextFilter === 'selection' ? selectedItemIds : []
         });
 
         const contextString = JSON.stringify(context, null, 2);

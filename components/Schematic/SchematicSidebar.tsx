@@ -7,6 +7,7 @@ interface SchematicSidebarProps {
     items: any[];
     showAll: boolean;
     selectedZoneId: string | null;
+    selectedZoneIds?: string[];
     setSelectedZoneId: (id: string | null) => void;
     editingZoneId: string | null;
     zoneNameInput: string;
@@ -15,6 +16,7 @@ interface SchematicSidebarProps {
     handleRenameZone: (zone: any) => void;
     handleUpdateZoneAction: (zoneId: string, field: 'lastWateredAt' | 'lastFertilizedAt') => void;
     selectedItemId: string | null;
+    selectedItemIds?: string[];
     setSelectedItemId: (id: string | null) => void;
     handleEditItem: (item: any) => void;
     onDeleteItem: (id: string) => void;
@@ -25,10 +27,10 @@ interface SchematicSidebarProps {
 
 export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
     zones, items, showAll,
-    selectedZoneId, setSelectedZoneId,
+    selectedZoneId, selectedZoneIds = [], setSelectedZoneId,
     editingZoneId, zoneNameInput, setZoneNameInput, saveZoneName, handleRenameZone,
     handleUpdateZoneAction,
-    selectedItemId, setSelectedItemId,
+    selectedItemId, selectedItemIds = [], setSelectedItemId,
     handleEditItem, onDeleteItem,
     editingMetadata, setEditingMetadata, handleSaveMetadata
 }) => {
@@ -41,17 +43,18 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
 
             {zones.map(zone => {
                 const zoneItems = items.filter(i => i.zoneId === zone.id);
+                const isSelected = selectedZoneIds.includes(zone.id);
 
                 return (
                     <div key={zone.id} className="mb-10">
                         <div className="flex flex-col gap-1 w-full">
                             <div className="flex items-center justify-between cursor-pointer group" onClick={() => { setSelectedItemId(null); setSelectedZoneId(selectedZoneId === zone.id ? null : zone.id); }}>
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-2 h-2 rounded-full transition-all ${selectedZoneId === zone.id ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] scale-125' : 'bg-slate-200'}`} />
+                                    <div className={`w-2 h-2 rounded-full transition-all ${isSelected ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] scale-125' : 'bg-slate-200'}`} />
                                     {editingZoneId === zone.id ? (
                                         <input autoFocus className="text-sm font-black uppercase bg-slate-100 px-2 py-0.5 rounded w-40 text-slate-900" value={zoneNameInput} onChange={e => setZoneNameInput(e.target.value)} onBlur={saveZoneName} onKeyDown={e => e.key === 'Enter' && saveZoneName()} onClick={e => e.stopPropagation()} />
                                     ) : (
-                                        <span className={`text-sm font-black uppercase text-slate-800 transition-opacity ${selectedZoneId !== zone.id && 'opacity-40'}`} onDoubleClick={(e) => { e.stopPropagation(); handleRenameZone(zone); }}>{zone.name}</span>
+                                        <span className={`text-sm font-black uppercase text-slate-800 transition-opacity ${!isSelected && 'opacity-40'}`} onDoubleClick={(e) => { e.stopPropagation(); handleRenameZone(zone); }}>{zone.name}</span>
                                     )}
                                 </div>
                                 <div className="flex flex-col items-end">

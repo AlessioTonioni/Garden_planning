@@ -25,9 +25,9 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
     const [localZones, setLocalZones] = useState(zones);
     const [localItems, setLocalItems] = useState(items);
     const [showAll, setShowAll] = useState(false);
-    const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+    const [selectedZoneIds, setSelectedZoneIds] = useState<string[]>([]);
     const [activeTool, setActiveTool] = useState<string | null>(null);
-    const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+    const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
     const [editingMetadata, setEditingMetadata] = useState<any>(null);
     const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
     const [zoneNameInput, setZoneNameInput] = useState('');
@@ -56,31 +56,51 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
         handleMouseDown, handleMouseMove, handleMouseUp,
         handleZoneClick
     } = useSchematicInteraction({
-        rotation, setRotation, zoom, panOffset, setPanOffset, unproject, contentBounds,
+        rotation, zoom, panOffset, setPanOffset, unproject, contentBounds,
         onPlace, onUpdateZone, onUpdateItem,
         activeTool, setActiveTool,
-        selectedZoneId, setSelectedZoneId,
-        selectedItemId, setSelectedItemId,
+        selectedZoneIds, setSelectedZoneId: (id) => setSelectedZoneIds(id ? [id] : []),
+        selectedItemIds, setSelectedItemId: (id) => setSelectedItemIds(id ? [id] : []),
         localZones, setLocalZones,
         localItems, setLocalItems,
         cosFactor, svgRef
     });
 
+    const handleMultiZoneClick = (zone: any, e: React.MouseEvent) => {
+        const isMeta = e.metaKey || e.ctrlKey;
+        if (isMeta) {
+            setSelectedZoneIds(prev =>
+                prev.includes(zone.id) ? prev.filter(id => id !== zone.id) : [...prev, zone.id]
+            );
+            setSelectedItemIds([]);
+        } else {
+            handleZoneClick(zone, e);
+        }
+    };
+
     // --- SIDEBAR HANDLERS (Rename Zone, Edit Item Metadata etc.) ---
     // These could also be extracted to useSchematicSidebar or similar if needed, 
     // but they are relatively simple UI state handlers.
 
-    const handleEditItem = (item: any) => {
-        setSelectedZoneId(null);
-        setSelectedItemId(item.id);
-        const meta = item.metadata ? (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata) : {};
-        setEditingMetadata(meta);
+    const handleEditItem = (item: any, e?: React.MouseEvent) => {
+        const isMeta = e?.metaKey || e?.ctrlKey;
+        if (isMeta) {
+            setSelectedItemIds(prev =>
+                prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id]
+            );
+            setSelectedZoneIds([]);
+        } else {
+            setSelectedZoneIds([]);
+            setSelectedItemIds([item.id]);
+            const meta = item.metadata ? (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata) : {};
+            setEditingMetadata(meta);
+        }
     };
 
     const handleSaveMetadata = () => {
-        if (selectedItemId && editingMetadata) {
-            onUpdateItem(selectedItemId, undefined, undefined, editingMetadata);
-            setSelectedItemId(null);
+        if (selectedItemIds.length > 0 && editingMetadata) {
+            onUpdateItem(selectedItemIds[0], undefined, undefined, editingMetadata);
+            setSelectedItemIds([]);
             setEditingMetadata(null);
         }
     };
@@ -107,7 +127,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
             <SchematicTools
                 activeTool={activeTool}
                 setActiveTool={setActiveTool}
-                visible={!!selectedZoneId}
+                visible={selectedZoneIds.length > 0}
             />
 
             <SchematicToolbar
@@ -157,7 +177,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                             }).join(' ');
 
                                             const style = getZoneStyle(zone.type);
-                                            const isSelected = selectedZoneId === zone.id;
+                                            const isSelected = selectedZoneIds.includes(zone.id);
 
                                             return (
                                                 <polygon
@@ -169,8 +189,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                                     opacity={isSelected ? 1 : 0.4}
                                                     className="cursor-pointer transition-all duration-300"
                                                     onClick={(e) => {
-                                                        setSelectedItemId(null);
-                                                        handleZoneClick(zone, e);
+                                                        handleMultiZoneClick(zone, e);
                                                     }}
                                                 />
                                             );
@@ -179,7 +198,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
 
                                     {/* Handles Layer */}
                                     <g key="handles-layer">
-                                        {localZones.filter(z => z.id === selectedZoneId).map(zone => {
+                                        {localZones.filter(z => selectedZoneIds.includes(z.id) && selectedZoneIds.length === 1).map(zone => {
                                             const polygonPoints = zone.geoJson.geometry.coordinates[0];
                                             return polygonPoints.map((coord: any, vIdx: number) => {
                                                 if (vIdx === polygonPoints.length - 1) return null;
@@ -217,9 +236,8 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                     {/* Items Layer */}
                                     <g key="items-layer">
                                         {localItems.map((item) => {
-                                            const isSelected = selectedItemId === item.id;
-                                            const selectedItemZoneId = selectedItemId ? localItems.find(i => i.id === selectedItemId)?.zoneId : null;
-                                            const isVisible = showAll || selectedZoneId === item.zoneId || isSelected || (selectedItemZoneId && item.zoneId === selectedItemZoneId);
+                                            const isSelected = selectedItemIds.includes(item.id);
+                                            const isVisible = showAll || selectedZoneIds.includes(item.zoneId) || isSelected;
 
                                             if (!isVisible) return null;
                                             const p = project(item.lat, item.lng);
@@ -232,7 +250,7 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                                                 <g key={item.id} transform={`translate(${p.x}, ${p.y})`} className="cursor-pointer">
                                                     <g transform={`rotate(${-rotation})`} onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleEditItem(item);
+                                                        handleEditItem(item, e);
                                                     }}>
                                                         {isSelected && <circle r={fontSize * 0.5} fill="none" stroke="#3b82f6" strokeWidth={0.1} strokeDasharray="0.5,0.5" className="animate-spin-slow" />}
                                                         <text textAnchor="middle" dominantBaseline="central" fontSize={fontSize}>{item.type === 'tree' ? '🌳' : item.type === 'pot' ? '🪴' : item.type === 'flower' ? '🌸' : '🌱'}</text>
@@ -253,23 +271,25 @@ export const SchematicView = ({ zones, items, onClose, onPlace, onDeleteItem, on
                     zones={localZones}
                     items={localItems}
                     showAll={showAll}
-                    selectedZoneId={selectedZoneId}
-                    setSelectedZoneId={setSelectedZoneId}
+                    selectedZoneId={selectedZoneIds.length === 1 ? selectedZoneIds[0] : null}
+                    selectedZoneIds={selectedZoneIds}
+                    setSelectedZoneId={(id) => setSelectedZoneIds(id ? [id] : [])}
                     editingZoneId={editingZoneId}
                     zoneNameInput={zoneNameInput}
                     setZoneNameInput={setZoneNameInput}
                     saveZoneName={saveZoneName}
                     handleRenameZone={handleRenameZone}
                     handleUpdateZoneAction={handleUpdateZoneAction}
-                    selectedItemId={selectedItemId}
-                    setSelectedItemId={setSelectedItemId}
+                    selectedItemId={selectedItemIds.length === 1 ? selectedItemIds[0] : null}
+                    selectedItemIds={selectedItemIds}
+                    setSelectedItemId={(id) => setSelectedItemIds(id ? [id] : [])}
                     handleEditItem={handleEditItem}
                     onDeleteItem={onDeleteItem}
                     editingMetadata={editingMetadata}
                     setEditingMetadata={setEditingMetadata}
                     handleSaveMetadata={handleSaveMetadata}
                 />
-                <AIChat selectedZoneId={selectedZoneId} selectedItemId={selectedItemId} />
+                <AIChat selectedZoneIds={selectedZoneIds} selectedItemIds={selectedItemIds} />
             </div>
         </div>
     );

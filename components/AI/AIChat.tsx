@@ -5,8 +5,8 @@ import { Send, Bot, X, Sparkles, Sprout, Bug, RotateCcw, Settings } from 'lucide
 import { cn } from '@/lib/utils';
 
 export interface AIChatProps {
-    selectedZoneId?: string | null;
-    selectedItemId?: string | null;
+    selectedZoneIds?: string[];
+    selectedItemIds?: string[];
 }
 
 const DEFAULT_SYSTEM_PROMPT = `You are an expert AI Gardening Assistant for a home garden planning application.
@@ -28,7 +28,7 @@ INSTRUCTIONS:
 - Format responses in Markdown for readability
 - Try to answer in a concise and direct way`;
 
-export function AIChat({ selectedZoneId, selectedItemId }: AIChatProps) {
+export function AIChat({ selectedZoneIds = [], selectedItemIds = [] }: AIChatProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
     const [input, setInput] = useState('');
@@ -61,8 +61,8 @@ export function AIChat({ selectedZoneId, selectedItemId }: AIChatProps) {
                 body: JSON.stringify({
                     messages: [...messages, userMsg],
                     contextFilter,
-                    selectedZoneId,
-                    selectedItemId,
+                    selectedZoneIds,
+                    selectedItemIds,
                     systemPrompt
                 })
             });

@@ -5,7 +5,6 @@ interface UseSchematicInteractionProps {
     zoom: number;
     panOffset: { x: number; y: number };
     setPanOffset: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
-    setRotation: (r: number) => void; // For keyboard rotation if we want that later
     unproject: (x: number, y: number) => { lat: number; lng: number };
     contentBounds: { centerX: number; centerY: number };
     onPlace: (zoneId: string, lat: number, lng: number, type: string) => void;
@@ -13,9 +12,9 @@ interface UseSchematicInteractionProps {
     onUpdateItem: (id: string, lat?: number, lng?: number, metadata?: any) => void;
     activeTool: string | null;
     setActiveTool: (t: string | null) => void;
-    selectedZoneId: string | null;
+    selectedZoneIds: string[];
     setSelectedZoneId: (id: string | null) => void;
-    selectedItemId: string | null;
+    selectedItemIds: string[];
     setSelectedItemId: (id: string | null) => void;
     localZones: any[];
     setLocalZones: React.Dispatch<React.SetStateAction<any[]>>;
@@ -29,8 +28,8 @@ export const useSchematicInteraction = ({
     rotation, zoom, panOffset, setPanOffset, unproject, contentBounds,
     onPlace, onUpdateZone, onUpdateItem,
     activeTool, setActiveTool,
-    selectedZoneId, setSelectedZoneId,
-    selectedItemId, setSelectedItemId,
+    selectedZoneIds, setSelectedZoneId,
+    selectedItemIds, setSelectedItemId,
     localZones, setLocalZones,
     localItems, setLocalItems,
     cosFactor, svgRef
@@ -43,14 +42,12 @@ export const useSchematicInteraction = ({
     // --- KEYBOARD MOVEMENT ---
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Ignore if typing in an input field
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-            // WASD for map panning (always available)
             const wasdKeys = ['w', 'a', 's', 'd', 'W', 'A', 'S', 'D'];
             if (wasdKeys.includes(e.key)) {
                 e.preventDefault();
-                const PAN_SPEED = 1 / zoom; // Adjust speed based on zoom
+                const PAN_SPEED = 1 / zoom;
                 let dx = 0, dy = 0;
                 if (e.key.toLowerCase() === 'w') dy = PAN_SPEED;
                 else if (e.key.toLowerCase() === 's') dy = -PAN_SPEED;
@@ -60,9 +57,8 @@ export const useSchematicInteraction = ({
                 return;
             }
 
-            // Arrow keys for moving selected item/zone
             if (activeTool) return;
-            if (!selectedZoneId && !selectedItemId) return;
+            if (selectedZoneIds.length === 0 && selectedItemIds.length === 0) return;
 
             const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
             if (!arrowKeys.includes(e.key)) return;
@@ -82,14 +78,14 @@ export const useSchematicInteraction = ({
             const dLat = (dX * sin - dY * cos) * DELTA;
             const dLng = (dX * cos + dY * sin) * (DELTA / cosFactor);
 
-            if (selectedItemId) {
+            if (selectedItemIds.length > 0) {
                 setLocalItems(prev => prev.map(item => {
-                    if (item.id !== selectedItemId) return item;
+                    if (!selectedItemIds.includes(item.id)) return item;
                     return { ...item, lat: item.lat + dLat, lng: item.lng + dLng };
                 }));
-            } else if (selectedZoneId) {
+            } else if (selectedZoneIds.length > 0) {
                 setLocalZones(prev => prev.map(z => {
-                    if (z.id !== selectedZoneId) return z;
+                    if (!selectedZoneIds.includes(z.id)) return z;
                     const newGeoJson = JSON.parse(JSON.stringify(z.geoJson));
                     newGeoJson.geometry.coordinates[0] = newGeoJson.geometry.coordinates[0].map((coord: [number, number]) => [
                         coord[0] + dLng, coord[1] + dLat
@@ -103,12 +99,16 @@ export const useSchematicInteraction = ({
             const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
             if (!keys.includes(e.key)) return;
 
-            if (selectedItemId) {
-                const item = localItems.find(i => i.id === selectedItemId);
-                if (item) onUpdateItem(item.id, item.lat, item.lng);
-            } else if (selectedZoneId) {
-                const zone = localZones.find(z => z.id === selectedZoneId);
-                if (zone) onUpdateZone(zone.id, { geoJson: JSON.stringify(zone.geoJson) });
+            if (selectedItemIds.length > 0) {
+                selectedItemIds.forEach(id => {
+                    const item = localItems.find(i => i.id === id);
+                    if (item) onUpdateItem(item.id, item.lat, item.lng);
+                });
+            } else if (selectedZoneIds.length > 0) {
+                selectedZoneIds.forEach(id => {
+                    const zone = localZones.find(z => z.id === id);
+                    if (zone) onUpdateZone(zone.id, { geoJson: JSON.stringify(zone.geoJson) });
+                });
             }
         };
 
@@ -118,7 +118,7 @@ export const useSchematicInteraction = ({
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, [selectedZoneId, selectedItemId, activeTool, cosFactor, rotation, zoom, onUpdateZone, onUpdateItem, localItems, localZones, setPanOffset]);
+    }, [selectedZoneIds, selectedItemIds, activeTool, cosFactor, rotation, zoom, onUpdateZone, onUpdateItem, localItems, localZones, setPanOffset]);
 
     // --- MOUSE HANDLERS ---
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -163,10 +163,8 @@ export const useSchematicInteraction = ({
         }
 
         if (isDragging) {
-            const sensitivity = 1; // 1:1 movement feels better usually, or keep 5 if intended
             const dx = (e.clientX - lastMousePos.current.x) / zoom;
             const dy = (e.clientY - lastMousePos.current.y) / zoom;
-
             setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
             lastMousePos.current = { x: e.clientX, y: e.clientY };
         }
@@ -182,7 +180,7 @@ export const useSchematicInteraction = ({
     };
 
     const handleZoneClick = (zone: any, e: React.MouseEvent) => {
-        const isSelected = selectedZoneId === zone.id;
+        const isSelected = selectedZoneIds.includes(zone.id);
         if (activeTool && isSelected && svgRef.current) {
             const svg = svgRef.current;
             const pt = svg.createSVGPoint();
@@ -200,19 +198,12 @@ export const useSchematicInteraction = ({
             const { lat, lng } = unproject(rx, ry);
 
             onPlace(zone.id, lat, lng, activeTool);
-            setActiveTool(null); // Clear tool after placing
+            setActiveTool(null);
         } else {
             setSelectedZoneId(isSelected ? null : zone.id);
             setActiveTool(null);
             setSelectedItemId(null);
         }
-    };
-
-    const handleWheel = (e: React.WheelEvent) => {
-        // Zoom logic handled in Viewport or here? Kept simplified here or passed up.
-        // Actually, wheel zoom is usually a viewport concern, but it's an event...
-        // Let's leave it to the consumer to attach to viewport setter, or handle here.
-        // For now, returning helper.
     };
 
     return {
