@@ -18,8 +18,17 @@ Garden Planner Pro is a Next.js 14 application for planning and managing home ga
 
 ## Directory Structure
 
+```text
+/app             # Next.js App Router (Pages & API Routes)
+/components      # React Components (Modular & Reusable)
+  /UI            # Low-level UI primitives (Button, Modal, etc.)
+  /Map           # Map-related components and view
+  /Seedbed       # Seedbed manager sub-components
+/hooks           # Custom React Hooks (Business Logic)
+/lib             # Shared Library (Constants, Helpers, Prisma)
+/prisma          # Database Schema & Migrations
+/docs            # Documentation
 ```
-/
 ├── app/                    # Next.js App Router
 │   ├── api/               # API routes
 │   │   ├── chat/          # AI chat endpoint
@@ -44,7 +53,7 @@ Garden Planner Pro is a Next.js 14 application for planning and managing home ga
 │   │   ├── SchematicTools.tsx
 │   │   ├── SchematicToolbar.tsx
 │   │   ├── useSchematicViewport.ts
-│   │   └── useSchematicInteraction.ts
+│   │   ├── useSchematicInteraction.ts
 │   ├── Seedbed/           # Seedbed tracker
 │   │   └── SeedbedView.tsx
 │   └── Navigation.tsx     # Top nav bar
@@ -106,6 +115,22 @@ Seedbed tracking models for starting seeds indoors.
 1. **Planner View** (`SchematicView.tsx`): SVG-based visual editor for placing and managing plants
 2. **Setup View** (`Map.tsx`): Leaflet aerial map for zone creation/editing
 3. **Seedbed View** (`SeedbedView.tsx`): Track seeds and seedlings
+
+### Core Components & Hooks
+
+#### Hooks (Business Logic)
+- **`useGardenData.ts`**: Centralized hook for managing garden data (zones and placements). Handles CRUD operations, state synchronization, and API interactions for the Map view.
+- **`useSeedbed.ts`**: Manages seed inventory and seedling status state. Encapsulates filtering, sorting, and API calls for the Seedbed view.
+
+#### Key Components
+- **`Map.tsx`**: High-level component that utilizes `useGardenData` to render the interactive garden layout.
+- **`SeedbedView.tsx`**: Modular view that composes `ActiveSeedlings`, `SeedInventoryTable`, and various form modals, driven by the `useSeedbed` hook.
+- **`AIChat.tsx`**: The main interface for the AI assistant, now utilizing shared `Modal` components for settings and debugging.
+
+#### Shared Modules
+- **`lib/constants.ts`**: Central repository for application-wide constants including AI model configuration, item types, zone configurations, and month names.
+- **`lib/helpers.ts`**: Shared utility functions suchs as `renderNotes` (auto-linking), `parseMetadata`, and `formatMonthRange`.
+- **`lib/types.ts`**: Centralized TypeScript interfaces for core domain entities (Seed, Seedling, Zone, Placement).
 
 ### Data Flow
 ```

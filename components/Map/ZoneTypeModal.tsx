@@ -1,22 +1,13 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { ZONE_TYPES } from '@/lib/constants';
 
 interface ZoneTypeModalProps {
     isOpen: boolean;
     onSelect: (type: string, name: string) => void;
     onCancel: () => void;
 }
-
-const ZONE_TYPES = [
-    { id: 'planting', label: 'Planting Area', icon: '🌱', color: 'bg-green-100 hover:bg-green-200 border-green-300' },
-    { id: 'tree', label: 'Tree', icon: '🌳', color: 'bg-emerald-100 hover:bg-emerald-200 border-emerald-300' },
-    { id: 'grass', label: 'Grass Field', icon: '🌿', color: 'bg-lime-100 hover:bg-lime-200 border-lime-300' },
-    { id: 'pot', label: 'Pot', icon: '🪴', color: 'bg-orange-100 hover:bg-orange-200 border-orange-300' },
-    { id: 'path', label: 'Walking Path', icon: '👣', color: 'bg-stone-100 hover:bg-stone-200 border-stone-300' },
-    { id: 'building', label: 'Building', icon: '🏠', color: 'bg-slate-100 hover:bg-slate-200 border-slate-300' },
-    { id: 'other', label: 'Other', icon: '❓', color: 'bg-gray-100 hover:bg-gray-200 border-gray-300' },
-];
 
 export const ZoneTypeModal = ({ isOpen, onSelect, onCancel }: ZoneTypeModalProps) => {
     if (!isOpen) return null;

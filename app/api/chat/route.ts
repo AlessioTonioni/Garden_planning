@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getGardenContext } from "@/lib/ai/gardenContext";
 import { NextResponse } from "next/server";
+import { AI_MODEL } from "@/lib/constants";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
 
@@ -30,7 +31,7 @@ Respond helpfully based on the context above and the conversation history. Forma
 
         // Initialize model with system instructions
         const model = genAI.getGenerativeModel({
-            model: "gemini-3-flash-preview",
+            model: AI_MODEL,
             systemInstruction
         });
 

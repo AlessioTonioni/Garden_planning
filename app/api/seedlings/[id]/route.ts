@@ -25,7 +25,7 @@ export async function PATCH(
         const body = await request.json();
         const { quantity, seededAt, expectedSproutAt, sproutedAt, transplantedAt, location, status, notes } = body;
 
-        console.log(`Updating seedling ${id} with body:`, body);
+
 
         const updated = await prisma.seedling.update({
             where: { id },

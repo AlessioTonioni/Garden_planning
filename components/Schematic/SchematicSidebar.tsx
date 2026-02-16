@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Layers, Droplets, FlaskConical, Trash2 } from 'lucide-react';
 import { calculateArea } from '../Map/utils';
+import { renderNotes } from '@/lib/helpers';
 
 interface SchematicSidebarProps {
     zones: any[];
@@ -24,28 +25,6 @@ interface SchematicSidebarProps {
     setEditingMetadata: (meta: any) => void;
     handleSaveMetadata: () => void;
 }
-
-const renderNotes = (notes: string | null) => {
-    if (!notes) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    return notes.split(urlRegex).map((part, i) => {
-        if (part.match(urlRegex)) {
-            return (
-                <a
-                    key={i}
-                    href={part}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline break-all"
-                    onClick={e => e.stopPropagation()}
-                >
-                    {part}
-                </a>
-            );
-        }
-        return part;
-    });
-};
 
 export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
     zones, items, showAll,

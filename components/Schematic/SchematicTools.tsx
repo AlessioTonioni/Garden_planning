@@ -1,4 +1,5 @@
 import React from 'react';
+import { ITEM_TYPES, getItemEmoji } from '@/lib/constants';
 
 interface SchematicToolsProps {
     activeTool: string | null;
@@ -14,7 +15,7 @@ export const SchematicTools: React.FC<SchematicToolsProps> = ({ activeTool, setA
             <div className="text-[9px] font-black uppercase text-center text-slate-400 tracking-widest pb-2 border-b border-slate-200/50 mb-1">
                 Tools
             </div>
-            {['plant', 'tree', 'pot', 'flower'].map(t => (
+            {ITEM_TYPES.map(t => (
                 <button
                     key={t}
                     onClick={() => setActiveTool(activeTool === t ? null : t)}
@@ -22,7 +23,7 @@ export const SchematicTools: React.FC<SchematicToolsProps> = ({ activeTool, setA
                         ${activeTool === t ? 'bg-green-600 text-white shadow-lg shadow-green-200 scale-110 z-10' : 'bg-white/50 text-slate-400 hover:bg-green-50 hover:text-green-600 hover:scale-105'}`}
                     title={`Place ${t}`}
                 >
-                    {t === 'tree' ? '🌳' : t === 'pot' ? '🪴' : t === 'flower' ? '🌸' : '🌱'}
+                    {getItemEmoji(t)}
                     {activeTool === t && (
                         <div className="absolute left-full ml-3 px-2 py-1 bg-slate-800 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">
                             {t.toUpperCase()}

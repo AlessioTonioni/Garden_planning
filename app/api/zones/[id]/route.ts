@@ -23,7 +23,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     try {
         const { id } = await params;
         const body = await request.json();
-        console.log('ACTIVE DATABASE_URL:', process.env.DATABASE_URL);
+
 
         if (!id) {
             return NextResponse.json({ error: 'Missing id' }, { status: 400 });
