@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Layers, Droplets, FlaskConical, Trash2 } from 'lucide-react';
 import { calculateArea } from '../Map/utils';
 
@@ -25,6 +25,28 @@ interface SchematicSidebarProps {
     handleSaveMetadata: () => void;
 }
 
+const renderNotes = (notes: string | null) => {
+    if (!notes) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return notes.split(urlRegex).map((part, i) => {
+        if (part.match(urlRegex)) {
+            return (
+                <a
+                    key={i}
+                    href={part}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline break-all"
+                    onClick={e => e.stopPropagation()}
+                >
+                    {part}
+                </a>
+            );
+        }
+        return part;
+    });
+};
+
 export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
     zones, items, showAll,
     selectedZoneId, selectedZoneIds = [], setSelectedZoneId,
@@ -34,6 +56,27 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
     handleEditItem, onDeleteItem,
     editingMetadata, setEditingMetadata, handleSaveMetadata
 }) => {
+    const itemRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+    const zoneRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+    useEffect(() => {
+        if (selectedItemId && itemRefs.current[selectedItemId]) {
+            itemRefs.current[selectedItemId]?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+        }
+    }, [selectedItemId]);
+
+    useEffect(() => {
+        if (selectedZoneId && zoneRefs.current[selectedZoneId]) {
+            zoneRefs.current[selectedZoneId]?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            });
+        }
+    }, [selectedZoneId]);
+
     return (
         <aside className="w-96 bg-white border-l shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[30] flex flex-col p-8 overflow-y-auto">
             <div className="flex items-center gap-2 mb-8">
@@ -46,7 +89,7 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                 const isSelected = selectedZoneIds.includes(zone.id);
 
                 return (
-                    <div key={zone.id} className="mb-10">
+                    <div key={zone.id} ref={(el) => { zoneRefs.current[zone.id] = el; }} className="mb-10">
                         <div className="flex flex-col gap-1 w-full">
                             <div className="flex items-center justify-between cursor-pointer group" onClick={() => { setSelectedItemId(null); setSelectedZoneId(selectedZoneId === zone.id ? null : zone.id); }}>
                                 <div className="flex items-center gap-3">
@@ -74,7 +117,12 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                                 const isEditing = selectedItemId === item.id;
                                 const metadata = isEditing ? editingMetadata : (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata);
                                 return (
-                                    <div key={item.id} className={`transition-all border rounded-2xl p-4 flex flex-col gap-3 cursor-pointer ${isEditing ? 'bg-white border-green-500 shadow-xl' : 'bg-slate-50 border-slate-100'}`} onClick={() => handleEditItem(item)}>
+                                    <div
+                                        key={item.id}
+                                        ref={(el) => { itemRefs.current[item.id] = el; }}
+                                        className={`transition-all border rounded-2xl p-4 flex flex-col gap-3 cursor-pointer ${isEditing ? 'bg-white border-green-500 shadow-xl' : 'bg-slate-50 border-slate-100'}`}
+                                        onClick={() => handleEditItem(item)}
+                                    >
                                         <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-4">
                                                 <div className="text-xl">{item.type === 'tree' ? '🌳' : item.type === 'pot' ? '🪴' : item.type === 'flower' ? '🌸' : '🌱'}</div>
@@ -85,6 +133,11 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                                             </div>
                                             {!isEditing && <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete?')) onDeleteItem(item.id); }} className="text-slate-300 hover:text-red-500"><Trash2 size={14} /></button>}
                                         </div>
+                                        {metadata?.notes && !isEditing && (
+                                            <div className="text-[10px] text-slate-500 leading-relaxed bg-white/50 p-2 rounded-lg border border-slate-100/50">
+                                                {renderNotes(metadata.notes)}
+                                            </div>
+                                        )}
                                         {isEditing && (
                                             <div className="flex flex-col gap-3 pt-3 border-t border-slate-100" onClick={e => e.stopPropagation()}>
                                                 <div className="grid grid-cols-2 gap-2">

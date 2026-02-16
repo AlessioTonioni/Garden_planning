@@ -50,6 +50,28 @@ interface Seedling {
     seed?: Seed;
 }
 
+const renderNotes = (notes: string | null) => {
+    if (!notes) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return notes.split(urlRegex).map((part, i) => {
+        if (part.match(urlRegex)) {
+            return (
+                <a
+                    key={i}
+                    href={part}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline break-all"
+                    onClick={e => e.stopPropagation()}
+                >
+                    {part}
+                </a>
+            );
+        }
+        return part;
+    });
+};
+
 interface SeedbedViewProps {
     selectedSeedIds?: string[];
     setSelectedSeedIds?: React.Dispatch<React.SetStateAction<string[]>>;
@@ -428,6 +450,11 @@ const SeedbedView = ({ selectedSeedIds = [], setSelectedSeedIds = () => { } }: S
                                                 <h4 className="text-xl font-bold text-slate-900 group-hover:text-green-700 transition-colors">
                                                     {seedling.seed?.species || 'Unknown Species'}
                                                 </h4>
+                                                {seedling.notes && (
+                                                    <div className="mt-2 text-[11px] text-slate-500 leading-relaxed italic border-l-2 border-green-100 pl-3">
+                                                        {renderNotes(seedling.notes)}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                                                 <button onClick={() => openEditSeedlingModal(seedling)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400">
@@ -635,8 +662,9 @@ const SeedbedView = ({ selectedSeedIds = [], setSelectedSeedIds = () => { } }: S
                                                     </td>
                                                     <td className="px-8 py-6">
                                                         <div className="font-bold text-slate-900">{seed.species}</div>
+                                                        {seed.notes && <div className="text-[11px] text-slate-500 mt-1 max-w-xs">{renderNotes(seed.notes)}</div>}
                                                         {seed.expiryDate && (
-                                                            <div className="text-[10px] text-slate-400 uppercase font-bold tracking-tight">Expires {new Date(seed.expiryDate).toLocaleDateString()}</div>
+                                                            <div className="text-[10px] text-slate-400 uppercase font-bold tracking-tight mt-1">Expires {new Date(seed.expiryDate).toLocaleDateString()}</div>
                                                         )}
                                                     </td>
                                                     <td className="px-8 py-6">
