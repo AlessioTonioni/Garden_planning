@@ -27,19 +27,43 @@ export async function PATCH(
 
 
 
-        const updated = await prisma.seedling.update({
-            where: { id },
-            data: {
-                quantity: quantity !== undefined ? Number(quantity) : undefined,
-                seededAt: parseDate(seededAt),
-                expectedSproutAt: parseNullableDate(expectedSproutAt),
-                sproutedAt: parseNullableDate(sproutedAt),
-                transplantedAt: parseNullableDate(transplantedAt),
-                location,
-                status,
-                notes
-            },
-            include: { seed: true }
+        const updated = await prisma.$transaction(async (tx) => {
+            const oldSeedling = await tx.seedling.findUnique({
+                where: { id },
+                select: { quantity: true, seedId: true }
+            });
+
+            if (!oldSeedling) throw new Error('Seedling not found');
+
+            const seedling = await tx.seedling.update({
+                where: { id },
+                data: {
+                    quantity: quantity !== undefined ? Number(quantity) : undefined,
+                    seededAt: parseDate(seededAt),
+                    expectedSproutAt: parseNullableDate(expectedSproutAt),
+                    sproutedAt: parseNullableDate(sproutedAt),
+                    transplantedAt: parseNullableDate(transplantedAt),
+                    location,
+                    status,
+                    notes
+                },
+                include: { seed: true }
+            });
+
+            // Adjust seed packet quantity if quantity changed
+            if (quantity !== undefined && quantity !== oldSeedling.quantity) {
+                const diff = Number(quantity) - oldSeedling.quantity;
+                await tx.seed.update({
+                    where: { id: oldSeedling.seedId },
+                    data: {
+                        packetQuantity: {
+                            decrement: diff
+                        }
+                    }
+                });
+            }
+
+            return seedling;
         });
 
         return NextResponse.json(updated);
@@ -58,9 +82,30 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params;
-        await prisma.seedling.delete({
-            where: { id }
+
+        await prisma.$transaction(async (tx) => {
+            const seedling = await tx.seedling.findUnique({
+                where: { id },
+                select: { quantity: true, seedId: true }
+            });
+
+            if (seedling) {
+                // Return seeds to packet
+                await tx.seed.update({
+                    where: { id: seedling.seedId },
+                    data: {
+                        packetQuantity: {
+                            increment: seedling.quantity
+                        }
+                    }
+                });
+
+                await tx.seedling.delete({
+                    where: { id }
+                });
+            }
         });
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Failed to delete seedling:', error);

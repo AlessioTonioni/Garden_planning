@@ -48,6 +48,14 @@ export const SowFormModal: React.FC<SowFormModalProps> = ({
                                 value={editingSeedling?.quantity || 1}
                                 onChange={e => setEditingSeedling({ ...editingSeedling!, quantity: parseInt(e.target.value) || 1 })}
                             />
+                            {seed && (
+                                <p className={cn(
+                                    "text-[9px] font-bold uppercase px-1",
+                                    (editingSeedling?.quantity || 1) > seed.packetQuantity ? "text-red-500" : "text-slate-400"
+                                )}>
+                                    Available: {seed.packetQuantity} seeds
+                                </p>
+                            )}
                         </div>
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Sow Date</label>
