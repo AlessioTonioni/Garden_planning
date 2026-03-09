@@ -41,6 +41,15 @@ export function AIChat({ selectedZoneIds = [], selectedItemIds = [], selectedSee
     const [showSettings, setShowSettings] = useState(false);
     const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
+
+    // Auto-resize textarea
+    useEffect(() => {
+        if (inputRef.current) {
+            inputRef.current.style.height = 'auto';
+            inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+        }
+    }, [input]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -96,7 +105,7 @@ export function AIChat({ selectedZoneIds = [], selectedItemIds = [], selectedSee
             {/* Debug Dialog */}
             <Modal isOpen={showDebug} onClose={() => setShowDebug(false)} title="Debug: Last Prompt">
                 {lastPrompt ? (
-                    <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono bg-slate-50 p-4 rounded-lg border border-slate-200">{lastPrompt}</pre>
+                    <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono bg-slate-50 p-4 rounded-lg border border-slate-200 max-h-[60vh] overflow-y-auto">{lastPrompt}</pre>
                 ) : (
                     <p className="text-slate-400 text-center">No prompt sent yet. Send a message first.</p>
                 )}
@@ -196,13 +205,20 @@ export function AIChat({ selectedZoneIds = [], selectedItemIds = [], selectedSee
                     </div>
 
                     {/* Input */}
-                    <div className="p-3 bg-white border-t border-slate-100 flex gap-2 shrink-0">
-                        <input
-                            className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm text-black placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    <div className="p-3 bg-white border-t border-slate-100 flex items-end gap-2 shrink-0">
+                        <textarea
+                            ref={inputRef}
+                            rows={1}
+                            className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm text-black placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none min-h-[40px] max-h-32 overflow-y-auto"
                             placeholder="Ask anything..."
                             value={input}
                             onChange={e => setInput(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleSend()}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSend();
+                                }
+                            }}
                         />
                         <button
                             onClick={handleSend}
