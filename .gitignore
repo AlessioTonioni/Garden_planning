@@ -40,6 +40,11 @@ yarn-error.log*
 # local db
 prisma/*.db
 prisma/*.db-journal
+prisma/*.db-shm
+prisma/*.db-wal
+
+# drizzle migrations (generated, not needed in repo)
+/drizzle
 
 # vercel
 .vercel
@@ -50,8 +55,4 @@ CLAUDE.md
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# generated prisma files
-/app/generated/prisma
-node_modules/.prisma
 
