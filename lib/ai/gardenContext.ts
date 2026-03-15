@@ -1,4 +1,6 @@
-import { prisma } from "@/lib/prisma";
+import { inArray } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { zones, placements, seeds, seedlings } from "@/lib/db/schema";
 
 export interface GardenContext {
     zones: any[];
@@ -20,22 +22,21 @@ export async function getGardenContext(opts: {
     let filteredItems: any[] = [];
 
     if (opts.includePlanner || (opts.selectedZoneIds?.length ?? 0) > 0 || (opts.selectedItemIds?.length ?? 0) > 0) {
-        const zones = await prisma.zone.findMany();
-        const items = await prisma.placement.findMany();
+        const allZones = await db.select().from(zones);
+        const items = await db.select().from(placements);
 
-        // Filter based on selections if provided
-        filteredZones = zones;
+        filteredZones = allZones;
         filteredItems = items;
 
         if (opts.selectedZoneIds && opts.selectedZoneIds.length > 0) {
-            filteredZones = zones.filter((z: any) => opts.selectedZoneIds!.includes(z.id));
+            filteredZones = allZones.filter((z: any) => opts.selectedZoneIds!.includes(z.id));
             filteredItems = items.filter((i: any) => opts.selectedZoneIds!.includes(i.zoneId));
         } else if (opts.selectedItemIds && opts.selectedItemIds.length > 0) {
             filteredItems = items.filter((i: any) => opts.selectedItemIds!.includes(i.id));
             const selectedParentZoneIds = Array.from(new Set(
                 filteredItems.map((i: any) => i.zoneId).filter(Boolean)
             ));
-            filteredZones = zones.filter((z: any) => selectedParentZoneIds.includes(z.id));
+            filteredZones = allZones.filter((z: any) => selectedParentZoneIds.includes(z.id));
         }
     }
 
@@ -65,30 +66,28 @@ export async function getGardenContext(opts: {
     let seedbedData = undefined;
 
     if (opts.includeSeedbed) {
-        const seeds = await prisma.seed.findMany();
-        const seedlings = await prisma.seedling.findMany({
-            include: { seed: true }
-        });
+        const allSeeds = await db.select().from(seeds);
+        const allSeedlings = await db.select().from(seedlings);
+        const seedsById = new Map(allSeeds.map(s => [s.id, s]));
 
         seedbedData = {
-            seeds: seeds.map((s: any) => ({
+            seeds: allSeeds.map((s: any) => ({
                 species: s.species,
                 packetQuantity: s.packetQuantity,
                 notes: s.notes
             })),
-            seedlings: seedlings.map((s: any) => ({
-                species: s.seed?.species || 'Unknown',
-                status: s.status,
-                seededAt: s.seededAt ? new Date(s.seededAt).toLocaleDateString() : undefined
+            seedlings: allSeedlings.map((sl: any) => ({
+                species: seedsById.get(sl.seedId)?.species || 'Unknown',
+                status: sl.status,
+                seededAt: sl.seededAt ? new Date(sl.seededAt).toLocaleDateString() : undefined
             }))
         };
     }
 
     let selectedSeedsData = undefined;
     if (opts.selectedSeedIds && opts.selectedSeedIds.length > 0) {
-        const selectedSeeds = await prisma.seed.findMany({
-            where: { id: { in: opts.selectedSeedIds } }
-        });
+        const selectedSeeds = await db.select().from(seeds)
+            .where(inArray(seeds.id, opts.selectedSeedIds));
         selectedSeedsData = selectedSeeds.map((s: any) => ({
             species: s.species,
             packetQuantity: s.packetQuantity,

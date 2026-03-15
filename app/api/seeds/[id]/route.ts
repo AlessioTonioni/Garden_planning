@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { seeds } from '@/lib/db/schema';
 
 export async function PATCH(
     request: Request,
@@ -13,20 +15,21 @@ export async function PATCH(
             seedingStart, seedingEnd, harvestingStart, harvestingEnd
         } = body;
 
-        const updated = await prisma.seed.update({
-            where: { id },
-            data: {
-                species,
-                packetQuantity: packetQuantity !== undefined ? Number(packetQuantity) : undefined,
-                acquiredAt: acquiredAt ? new Date(acquiredAt) : undefined,
-                expiryDate: expiryDate ? new Date(expiryDate) : (expiryDate === null ? null : undefined),
-                notes,
-                seedingStart: seedingStart !== undefined ? (seedingStart === null ? null : Number(seedingStart)) : undefined,
-                seedingEnd: seedingEnd !== undefined ? (seedingEnd === null ? null : Number(seedingEnd)) : undefined,
-                harvestingStart: harvestingStart !== undefined ? (harvestingStart === null ? null : Number(harvestingStart)) : undefined,
-                harvestingEnd: harvestingEnd !== undefined ? (harvestingEnd === null ? null : Number(harvestingEnd)) : undefined,
-            }
-        });
+        const updateData: Partial<typeof seeds.$inferInsert> = { updatedAt: new Date() };
+        if (species !== undefined)         updateData.species = species;
+        if (packetQuantity !== undefined)  updateData.packetQuantity = Number(packetQuantity);
+        if (acquiredAt)                    updateData.acquiredAt = new Date(acquiredAt);
+        if (expiryDate !== undefined)      updateData.expiryDate = expiryDate ? new Date(expiryDate) : null;
+        if (notes !== undefined)           updateData.notes = notes;
+        if (seedingStart !== undefined)    updateData.seedingStart = seedingStart === null ? null : Number(seedingStart);
+        if (seedingEnd !== undefined)      updateData.seedingEnd = seedingEnd === null ? null : Number(seedingEnd);
+        if (harvestingStart !== undefined) updateData.harvestingStart = harvestingStart === null ? null : Number(harvestingStart);
+        if (harvestingEnd !== undefined)   updateData.harvestingEnd = harvestingEnd === null ? null : Number(harvestingEnd);
+
+        const [updated] = await db.update(seeds)
+            .set(updateData)
+            .where(eq(seeds.id, id))
+            .returning();
 
         return NextResponse.json(updated);
     } catch (error) {
@@ -41,9 +44,8 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params;
-        await prisma.seed.delete({
-            where: { id }
-        });
+        await db.delete(seeds).where(eq(seeds.id, id));
+        // Cascade via FK removes all seedlings for this seed
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Failed to delete seed:', error);
