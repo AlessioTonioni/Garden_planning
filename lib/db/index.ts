@@ -5,7 +5,7 @@ import * as schema from './schema';
 const globalForDb = global as unknown as { db: ReturnType<typeof drizzle> };
 
 function createDb() {
-    const url = process.env.DATABASE_URL ?? 'file:./prisma/dev.db';
+    const url = process.env.DATABASE_URL ?? 'file:./data/dev.db';
     // Strip the "file:" prefix that Prisma uses — better-sqlite3 needs a plain path
     const dbPath = url.replace(/^file:/, '');
 

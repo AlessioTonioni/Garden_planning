@@ -30,6 +30,9 @@ if [ ! -d ".next/standalone" ]; then
     echo "🔨 Building app..."
     # Cap memory during build — Pi 2 has 1GB RAM
     NODE_OPTIONS="--max-old-space-size=512" npm run build
+    # Standalone mode requires static assets to be copied in manually
+    cp -r .next/static .next/standalone/.next/static
+    cp -r public .next/standalone/public
 fi
 
 # 4. Start production server with memory cap

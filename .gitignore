@@ -38,10 +38,10 @@ yarn-error.log*
 .env.production.local
 
 # local db
-prisma/*.db
-prisma/*.db-journal
-prisma/*.db-shm
-prisma/*.db-wal
+data/*.db
+data/*.db-journal
+data/*.db-shm
+data/*.db-wal
 
 # drizzle migrations (generated, not needed in repo)
 /drizzle
