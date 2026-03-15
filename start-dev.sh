@@ -10,8 +10,9 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-# 2. Sync database schema
-echo "🗄️  Syncing database schema..."
+# 2. Generate Prisma client and sync database schema
+echo "🗄️  Generating Prisma client and syncing database schema..."
+npx prisma generate
 npx prisma db push
 
 # 3. Start development server

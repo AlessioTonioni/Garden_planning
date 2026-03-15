@@ -8,10 +8,14 @@ const BackupControls = ({ onRestore }: { onRestore: () => void }) => {
 
     const handleExport = async () => {
         try {
-            const res = await fetch('/api/zones');
-            const data = await res.json();
+            const [zonesRes, seedsRes] = await Promise.all([
+                fetch('/api/zones'),
+                fetch('/api/seeds')
+            ]);
+            const zones = await zonesRes.json();
+            const seeds = await seedsRes.json();
 
-            const blob = new Blob([JSON.stringify({ zones: data }, null, 2)], { type: 'application/json' });
+            const blob = new Blob([JSON.stringify({ zones, seeds }, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
 
             const a = document.createElement('a');
@@ -31,7 +35,7 @@ const BackupControls = ({ onRestore }: { onRestore: () => void }) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (!confirm('This will OVERWRITE your current garden map with the backup. Are you sure?')) {
+        if (!confirm('This will OVERWRITE your current garden map, seeds, and seedlings with the backup. Are you sure?')) {
             if (fileInputRef.current) fileInputRef.current.value = '';
             return;
         }
