@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
+import { zones, placements } from '@/lib/db/schema';
 
 export async function GET() {
     try {
-        const zones = await prisma.zone.findMany({
-            include: { placements: true }
-        });
-        return NextResponse.json(zones);
+        const allZones = await db.select().from(zones);
+        const allPlacements = await db.select().from(placements);
+        const result = allZones.map(z => ({
+            ...z,
+            placements: allPlacements.filter(p => p.zoneId === z.id)
+        }));
+        return NextResponse.json(result);
     } catch (error) {
         console.error('Check failed:', error);
         return NextResponse.json({ error: 'Failed to fetch zones' }, { status: 500 });
@@ -18,19 +22,16 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { geoJson, type, name, notes } = body;
 
-        // Basic validation
         if (!geoJson || !type) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        const newZone = await prisma.zone.create({
-            data: {
-                geoJson: JSON.stringify(geoJson), // Ensure it's a string
-                type,
-                name: name || 'Unnamed Zone',
-                notes
-            }
-        });
+        const [newZone] = await db.insert(zones).values({
+            geoJson: JSON.stringify(geoJson),
+            type,
+            name: name || 'Unnamed Zone',
+            notes
+        }).returning();
 
         return NextResponse.json(newZone);
     } catch (error) {

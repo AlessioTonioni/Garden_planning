@@ -1,71 +1,77 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
+import { zones, placements, seeds, seedlings } from '@/lib/db/schema';
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { zones, seeds } = body;
+        const { zones: zonesData, seeds: seedsData } = body;
 
-        if (!Array.isArray(zones)) {
+        if (!Array.isArray(zonesData)) {
             return NextResponse.json({ error: 'Invalid data format' }, { status: 400 });
         }
 
-        await prisma.$transaction(async (tx) => {
+        // better-sqlite3 transactions are synchronous — no async/await inside
+        db.transaction((tx) => {
             // Restore zones and placements
-            await tx.zone.deleteMany({});
-            for (const zone of zones) {
-                await tx.zone.create({
-                    data: {
-                        geoJson: zone.geoJson,
-                        type: zone.type,
-                        name: zone.name,
-                        notes: zone.notes,
-                        placements: {
-                            create: zone.placements?.map((p: any) => ({
-                                type: p.type,
-                                lat: p.lat,
-                                lng: p.lng,
-                                metadata: p.metadata
-                            })) || []
-                        }
-                    }
-                });
+            tx.delete(zones).run();
+            for (const zone of zonesData) {
+                const [createdZone] = tx.insert(zones).values({
+                    geoJson: zone.geoJson,
+                    type: zone.type,
+                    name: zone.name,
+                    notes: zone.notes,
+                }).returning().all();
+
+                if (zone.placements?.length) {
+                    tx.insert(placements).values(
+                        zone.placements.map((p: any) => ({
+                            zoneId: createdZone.id,
+                            type: p.type,
+                            lat: p.lat,
+                            lng: p.lng,
+                            metadata: p.metadata ?? '{}',
+                        }))
+                    ).run();
+                }
             }
 
             // Restore seeds and seedlings
-            if (Array.isArray(seeds)) {
-                await tx.seed.deleteMany({});
-                for (const seed of seeds) {
-                    await tx.seed.create({
-                        data: {
-                            species: seed.species,
-                            packetQuantity: seed.packetQuantity,
-                            acquiredAt: new Date(seed.acquiredAt),
-                            expiryDate: seed.expiryDate ? new Date(seed.expiryDate) : null,
-                            notes: seed.notes,
-                            seedingStart: seed.seedingStart,
-                            seedingEnd: seed.seedingEnd,
-                            harvestingStart: seed.harvestingStart,
-                            harvestingEnd: seed.harvestingEnd,
-                            seedlings: {
-                                create: seed.seedlings?.map((sl: any) => ({
-                                    quantity: sl.quantity,
-                                    seededAt: new Date(sl.seededAt),
-                                    expectedSproutAt: sl.expectedSproutAt ? new Date(sl.expectedSproutAt) : null,
-                                    sproutedAt: sl.sproutedAt ? new Date(sl.sproutedAt) : null,
-                                    transplantedAt: sl.transplantedAt ? new Date(sl.transplantedAt) : null,
-                                    location: sl.location,
-                                    status: sl.status,
-                                    notes: sl.notes,
-                                })) || []
-                            }
-                        }
-                    });
+            if (Array.isArray(seedsData)) {
+                tx.delete(seeds).run();
+                for (const seed of seedsData) {
+                    const [createdSeed] = tx.insert(seeds).values({
+                        species: seed.species,
+                        packetQuantity: seed.packetQuantity,
+                        acquiredAt: new Date(seed.acquiredAt),
+                        expiryDate: seed.expiryDate ? new Date(seed.expiryDate) : null,
+                        notes: seed.notes,
+                        seedingStart: seed.seedingStart,
+                        seedingEnd: seed.seedingEnd,
+                        harvestingStart: seed.harvestingStart,
+                        harvestingEnd: seed.harvestingEnd,
+                    }).returning().all();
+
+                    if (seed.seedlings?.length) {
+                        tx.insert(seedlings).values(
+                            seed.seedlings.map((sl: any) => ({
+                                seedId: createdSeed.id,
+                                quantity: sl.quantity,
+                                seededAt: new Date(sl.seededAt),
+                                expectedSproutAt: sl.expectedSproutAt ? new Date(sl.expectedSproutAt) : null,
+                                sproutedAt: sl.sproutedAt ? new Date(sl.sproutedAt) : null,
+                                transplantedAt: sl.transplantedAt ? new Date(sl.transplantedAt) : null,
+                                location: sl.location,
+                                status: sl.status,
+                                notes: sl.notes,
+                            }))
+                        ).run();
+                    }
                 }
             }
         });
 
-        return NextResponse.json({ success: true, zones: zones.length, seeds: seeds?.length ?? 0 });
+        return NextResponse.json({ success: true, zones: zonesData.length, seeds: seedsData?.length ?? 0 });
     } catch (error) {
         console.error('Restore failed:', error);
         return NextResponse.json({ error: 'Failed to restore backup' }, { status: 500 });

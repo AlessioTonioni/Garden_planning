@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
+import { placements } from '@/lib/db/schema';
 
 export async function POST(request: Request) {
     try {
@@ -10,15 +11,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        const placement = await prisma.placement.create({
-            data: {
-                zoneId,
-                type,
-                lat,
-                lng,
-                metadata: JSON.stringify(metadata || {})
-            }
-        });
+        const [placement] = await db.insert(placements).values({
+            zoneId,
+            type,
+            lat,
+            lng,
+            metadata: JSON.stringify(metadata || {})
+        }).returning();
 
         return NextResponse.json(placement);
     } catch (error) {
