@@ -51,6 +51,7 @@ data/*.db-wal
 
 # claude
 CLAUDE.md
+deploy-pi.sh
 
 # typescript
 *.tsbuildinfo

@@ -1,6 +1,6 @@
 # 🌱 Garden Planning
 
-A smart garden management and visualization tool built with Next.js, Prisma, and Leaflet. Plan your crops, track seedings, and optimize your garden layout with AI-powered assistance.
+A smart garden management and visualization tool built with Next.js, Drizzle ORM, and Leaflet. Plan your crops, track seedings, and optimize your garden layout with AI-powered assistance.
 
 ## ✨ Features
 
@@ -11,8 +11,8 @@ A smart garden management and visualization tool built with Next.js, Prisma, and
 
 ## 🛠️ Tech Stack
 
-- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
-- **Database**: [Prisma](https://www.prisma.io/) with SQLite (local development)
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
+- **Database**: [Drizzle ORM](https://orm.drizzle.team/) with SQLite (better-sqlite3)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **Maps**: [Leaflet](https://leafletjs.org/) & [React Leaflet](https://react-leaflet.js.org/)
 - **AI**: [Google Generative AI (Gemini)](https://ai.google.dev/)
@@ -46,7 +46,7 @@ A smart garden management and visualization tool built with Next.js, Prisma, and
 
 4. **Initialize Database**:
    ```bash
-   npx prisma db push
+   npm run db:push
    ```
 
 5. **Start Development Server**:

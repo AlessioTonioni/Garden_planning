@@ -1,14 +1,14 @@
-# Garden Planner Pro - Architecture
+# Garden Planning - Architecture
 
 ## Overview
-Garden Planner Pro is a Next.js 14 application for planning and managing home gardens. It features a visual planner for placing plants, trees, and flowers within zones, a seedbed tracker for starting seeds, and an AI-powered gardening assistant.
+Garden Planning is a Next.js 16 application for planning and managing home gardens. It features a visual planner for placing plants, trees, and flowers within zones, a seedbed tracker for starting seeds, and an AI-powered gardening assistant.
 
 ## Tech Stack
 | Layer | Technology |
 |-------|------------|
-| Framework | Next.js 14 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | Database | SQLite |
-| ORM | Prisma |
+| ORM | Drizzle ORM (better-sqlite3) |
 | Styling | Tailwind CSS |
 | Icons | Lucide React |
 | Visualization | SVG (Planner), Leaflet (Setup) |
@@ -25,8 +25,9 @@ Garden Planner Pro is a Next.js 14 application for planning and managing home ga
   /Map           # Map-related components and view
   /Seedbed       # Seedbed manager sub-components
 /hooks           # Custom React Hooks (Business Logic)
-/lib             # Shared Library (Constants, Helpers, Prisma)
-/prisma          # Database Schema & Migrations
+/lib             # Shared Library (Constants, Helpers, DB Client)
+/lib/db          # Drizzle ORM schema and client singleton
+/data            # SQLite database file (gitignored)
 /docs            # Documentation
 ```
 ├── app/                    # Next.js App Router
@@ -35,7 +36,7 @@ Garden Planner Pro is a Next.js 14 application for planning and managing home ga
 │   │   ├── seeds/         # Seed CRUD
 │   │   ├── seedlings/     # Seedling CRUD
 │   │   ├── zones/         # Zone CRUD
-│   │   └── items/         # Placement CRUD
+│   │   └── placements/    # Placement CRUD
 │   ├── layout.tsx         # Root layout
 │   └── page.tsx           # Home page
 │
@@ -59,13 +60,15 @@ Garden Planner Pro is a Next.js 14 application for planning and managing home ga
 │   └── Navigation.tsx     # Top nav bar
 │
 ├── lib/
-│   ├── prisma.ts          # Prisma client singleton
+│   ├── db/
+│   │   ├── index.ts       # Drizzle ORM client singleton (better-sqlite3)
+│   │   └── schema.ts      # Database schema definitions
 │   ├── utils.ts           # Utilities (cn, math)
 │   └── ai/
 │       └── gardenContext.ts  # Context builder for AI
 │
-├── prisma/
-│   └── schema.prisma      # Database schema
+├── data/
+│   └── dev.db             # SQLite database (gitignored)
 │
 └── docs/                  # Documentation
 ```
@@ -129,13 +132,13 @@ Seedbed tracking models for starting seeds indoors.
 
 #### Shared Modules
 - **`lib/constants.ts`**: Central repository for application-wide constants including AI model configuration, item types, zone configurations, and month names.
-- **`lib/helpers.ts`**: Shared utility functions suchs as `renderNotes` (auto-linking), `parseMetadata`, and `formatMonthRange`.
+- **`lib/helpers.ts`**: Shared utility functions such as `renderNotes` (auto-linking), `parseMetadata`, and `formatMonthRange`.
 - **`lib/types.ts`**: Centralized TypeScript interfaces for core domain entities (Seed, Seedling, Zone, Placement).
 
 ### Data Flow
 ```
-User Action → Local State (optimistic) → API Route → Prisma → SQLite
-                                                          ↓
+User Action → Local State (optimistic) → API Route → Drizzle ORM → SQLite
+                                                              ↓
                                                     Response → State Update
 ```
 
@@ -173,11 +176,15 @@ Floating chat widget with:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/zones` | GET/POST | List/create zones |
-| `/api/zones/[id]` | PATCH/DELETE | Update/delete zone |
-| `/api/items` | GET/POST | List/create placements |
-| `/api/items/[id]` | PATCH/DELETE | Update/delete placement |
+| `/api/zones/[id]` | PUT/DELETE | Update/delete zone |
+| `/api/zones/restore` | POST | Restore from backup |
+| `/api/placements` | POST | Create placement |
+| `/api/placements/[id]` | PUT/DELETE | Update/delete placement |
 | `/api/seeds` | GET/POST | List/create seeds |
+| `/api/seeds/[id]` | PATCH/DELETE | Update/delete seed |
+| `/api/seeds/extract` | POST | AI-extract seed info from image |
 | `/api/seedlings` | GET/POST | List/create seedlings |
+| `/api/seedlings/[id]` | PATCH/DELETE | Update/delete seedling |
 | `/api/chat` | POST | AI chat endpoint |
 
 ---
@@ -186,5 +193,5 @@ Floating chat widget with:
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | SQLite connection string |
+| `DATABASE_URL` | Path to SQLite file. Use `file:./data/dev.db` locally or an absolute path in production. |
 | `GOOGLE_API_KEY` | Google Gemini API key for AI features |

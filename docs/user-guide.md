@@ -3,8 +3,8 @@
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
+- Node.js 20+
+- npm
 
 ### Installation
 ```bash
@@ -16,16 +16,18 @@ cd Garden_planning
 npm install
 
 # Set up the database
-npx prisma db push
+npm run db:push
 
 # Start the development server
 npm run dev
+# or use the startup script
+./start-dev.sh
 ```
 
 ### Environment Setup
 Create a `.env` file with:
 ```
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="file:./data/dev.db"
 GOOGLE_API_KEY="your-gemini-api-key"
 ```
 
@@ -137,8 +139,7 @@ Click the 🤖 button in the bottom-right corner to open the AI chat.
 
 ### Database errors
 ```bash
-npx prisma db push
-npx prisma generate
+npm run db:push
 ```
 
 ### Placements not showing
