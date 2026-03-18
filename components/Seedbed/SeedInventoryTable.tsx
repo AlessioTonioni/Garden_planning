@@ -124,32 +124,32 @@ export const SeedInventoryTable: React.FC<SeedInventoryTableProps> = ({
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-100">
-                                <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest w-10">Select</th>
+                                <th className="px-4 md:px-8 py-4 md:py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest w-10">Select</th>
                                 <th
-                                    className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
+                                    className="px-4 md:px-8 py-4 md:py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
                                     onClick={() => onToggleSort('species')}
                                 >
                                     Species {sortConfig.key === 'species' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                 </th>
                                 <th
-                                    className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
+                                    className="px-4 md:px-8 py-4 md:py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
                                     onClick={() => onToggleSort('packetQuantity')}
                                 >
                                     In Stock {sortConfig.key === 'packetQuantity' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                 </th>
                                 <th
-                                    className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
+                                    className="px-4 md:px-8 py-4 md:py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
                                     onClick={() => onToggleSort('seedingStart')}
                                 >
                                     Seeding {sortConfig.key === 'seedingStart' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                 </th>
                                 <th
-                                    className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
+                                    className="px-4 md:px-8 py-4 md:py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest cursor-pointer hover:text-slate-600"
                                     onClick={() => onToggleSort('harvestingStart')}
                                 >
                                     Harvesting {sortConfig.key === 'harvestingStart' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                 </th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Actions</th>
+                                <th className="px-4 md:px-8 py-4 md:py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -167,7 +167,7 @@ export const SeedInventoryTable: React.FC<SeedInventoryTableProps> = ({
                                             "border-b border-slate-50 transition-colors group",
                                             isSelected ? "bg-blue-50/50" : "hover:bg-slate-50/50"
                                         )}>
-                                            <td className="px-8 py-6">
+                                            <td className="px-4 md:px-8 py-4 md:py-6">
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
@@ -175,31 +175,31 @@ export const SeedInventoryTable: React.FC<SeedInventoryTableProps> = ({
                                                     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                                                 />
                                             </td>
-                                            <td className="px-8 py-6">
+                                            <td className="px-4 md:px-8 py-4 md:py-6">
                                                 <div className="font-bold text-slate-900">{seed.species}</div>
                                                 {seed.notes && <div className="text-[11px] text-slate-500 mt-1 max-w-xs">{renderNotes(seed.notes)}</div>}
                                                 {seed.expiryDate && (
                                                     <div className="text-[10px] text-slate-400 uppercase font-bold tracking-tight mt-1">Expires {new Date(seed.expiryDate).toLocaleDateString()}</div>
                                                 )}
                                             </td>
-                                            <td className="px-8 py-6">
+                                            <td className="px-4 md:px-8 py-4 md:py-6">
                                                 <span className="bg-slate-100 px-3 py-1 rounded-lg text-sm font-bold text-slate-700">
                                                     {seed.packetQuantity}
                                                 </span>
                                             </td>
-                                            <td className="px-8 py-6">
+                                            <td className="px-4 md:px-8 py-4 md:py-6">
                                                 <div className="text-sm font-bold text-slate-600 flex items-center gap-1.5">
                                                     <Calendar size={14} className="text-green-500" />
                                                     {formatMonthRange(seed.seedingStart, seed.seedingEnd)}
                                                 </div>
                                             </td>
-                                            <td className="px-8 py-6">
+                                            <td className="px-4 md:px-8 py-4 md:py-6">
                                                 <div className="text-sm font-bold text-slate-600 flex items-center gap-1.5">
                                                     <Package size={14} className="text-amber-500" />
                                                     {formatMonthRange(seed.harvestingStart, seed.harvestingEnd)}
                                                 </div>
                                             </td>
-                                            <td className="px-8 py-6">
+                                            <td className="px-4 md:px-8 py-4 md:py-6">
                                                 <div className="flex gap-2">
                                                     <button
                                                         title="Sow Seeds"

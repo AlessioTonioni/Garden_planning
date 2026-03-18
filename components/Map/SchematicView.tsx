@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { getZoneStyle, calculateArea } from './utils';
-import { Layers, Droplets, FlaskConical, Trash2 } from 'lucide-react';
+import { Layers, Droplets, FlaskConical, Trash2, LayoutDashboard } from 'lucide-react';
 import { useSchematicViewport } from '../Schematic/useSchematicViewport';
 import { useSchematicInteraction } from '../Schematic/useSchematicInteraction';
 import { SchematicToolbar } from '../Schematic/SchematicToolbar';
@@ -42,6 +42,7 @@ export const SchematicView = ({
     const [localItems, setLocalItems] = useState(items);
     const [showAll, setShowAll] = useState(false);
     const [activeTool, setActiveTool] = useState<string | null>(null);
+    const [mobileTab, setMobileTab] = useState<'map' | 'inventory'>('map');
     const [editingMetadata, setEditingMetadata] = useState<any>(null);
     const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
     const [zoneNameInput, setZoneNameInput] = useState('');
@@ -152,13 +153,14 @@ export const SchematicView = ({
                 onCenter={centerView}
                 onClose={onClose}
                 isPrimary={isPrimary}
+                hiddenOnMobile={mobileTab === 'inventory'}
             />
 
             {/* Main Content */}
-            <div className="flex-1 flex relative overflow-hidden">
+            <div className="flex-1 flex relative overflow-hidden pb-14 md:pb-0">
 
                 {/* Canvas Area */}
-                <main className="flex-1 overflow-hidden relative bg-slate-50 flex items-center justify-center p-8">
+                <main className={`flex-1 overflow-hidden relative bg-slate-50 flex items-center justify-center p-8 ${mobileTab === 'inventory' ? 'hidden md:flex' : 'flex'}`}>
                     {activeTool && (
                         <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-green-500 text-white px-8 py-3 rounded-3xl z-[100] text-sm font-black shadow-2xl border-2 border-white uppercase tracking-widest animate-bounce">
                             ✨ Click on zone to place {activeTool}
@@ -285,6 +287,7 @@ export const SchematicView = ({
                     zones={localZones}
                     items={localItems}
                     showAll={showAll}
+                    mobileVisible={mobileTab === 'inventory'}
                     selectedZoneId={selectedZoneIds.length === 1 ? selectedZoneIds[0] : null}
                     selectedZoneIds={selectedZoneIds}
                     setSelectedZoneId={(id) => setSelectedZoneIds(id ? [id] : [])}
@@ -303,6 +306,25 @@ export const SchematicView = ({
                     setEditingMetadata={setEditingMetadata}
                     handleSaveMetadata={handleSaveMetadata}
                 />
+            </div>
+
+            {/* Mobile bottom tab bar */}
+            <div className="fixed bottom-0 left-0 right-0 z-[102] flex md:hidden bg-white/90 backdrop-blur-xl border-t border-slate-200 shadow-lg">
+                <button
+                    onClick={() => setMobileTab('map')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest transition-colors ${mobileTab === 'map' ? 'text-green-600 bg-green-50' : 'text-slate-400'}`}
+                >
+                    <LayoutDashboard size={16} />
+                    Map
+                </button>
+                <div className="w-px bg-slate-200" />
+                <button
+                    onClick={() => setMobileTab('inventory')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest transition-colors ${mobileTab === 'inventory' ? 'text-green-600 bg-green-50' : 'text-slate-400'}`}
+                >
+                    <Layers size={16} />
+                    Inventory
+                </button>
             </div>
         </div>
     );

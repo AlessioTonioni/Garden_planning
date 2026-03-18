@@ -7,6 +7,7 @@ interface SchematicSidebarProps {
     zones: any[];
     items: any[];
     showAll: boolean;
+    mobileVisible?: boolean;
     selectedZoneId: string | null;
     selectedZoneIds?: string[];
     setSelectedZoneId: (id: string | null) => void;
@@ -27,7 +28,7 @@ interface SchematicSidebarProps {
 }
 
 export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
-    zones, items, showAll,
+    zones, items, showAll, mobileVisible = false,
     selectedZoneId, selectedZoneIds = [], setSelectedZoneId,
     editingZoneId, zoneNameInput, setZoneNameInput, saveZoneName, handleRenameZone,
     handleUpdateZoneAction,
@@ -57,7 +58,7 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
     }, [selectedZoneId]);
 
     return (
-        <aside className="w-96 bg-white border-l shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[30] flex flex-col p-8 overflow-y-auto">
+        <aside className={`${mobileVisible ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-96 bg-white border-t md:border-t-0 md:border-l shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[30] p-6 md:p-8 overflow-y-auto`}>
             <div className="flex items-center gap-2 mb-8">
                 <Layers size={14} className="text-green-600" />
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Garden Inventory</h3>
