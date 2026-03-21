@@ -46,7 +46,7 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                 block: 'center',
             });
         }
-    }, [selectedItemId]);
+    }, [selectedItemId, mobileVisible]);
 
     useEffect(() => {
         if (selectedZoneId && zoneRefs.current[selectedZoneId]) {
@@ -135,7 +135,7 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                                                     </div>
                                                     <div className="flex flex-col gap-1">
                                                         <label className="text-[9px] font-black text-slate-400 uppercase">Quantity</label>
-                                                        <input type="number" className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1 text-xs text-slate-900" value={editingMetadata?.quantity || 1} min={1} onChange={e => setEditingMetadata({ ...editingMetadata, quantity: parseInt(e.target.value) || 1 })} />
+                                                        <input type="text" inputMode="numeric" className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1 text-xs text-slate-900" value={editingMetadata?.quantity ?? ''} placeholder="1" onChange={e => setEditingMetadata({ ...editingMetadata, quantity: e.target.value })} />
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col gap-1">

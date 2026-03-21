@@ -49,6 +49,16 @@ export const SchematicView = ({
 
     const svgRef = useRef<SVGSVGElement>(null);
 
+    // --- TOUCH INTERACTION REFS (stable ones, no viewport deps) ---
+    const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
+    const lastPinchDistRef = useRef<number | null>(null);
+    const draggingItemIdRef = useRef<string | null>(null);
+    const touchDraggedRef = useRef(false);
+    const localItemsRef = useRef(localItems);
+    useEffect(() => { localItemsRef.current = localItems; }, [localItems]);
+    const onUpdateItemRef = useRef(onUpdateItem);
+    useEffect(() => { onUpdateItemRef.current = onUpdateItem; }, [onUpdateItem]);
+
     // Sync props to local state
     useEffect(() => { setLocalZones(zones); }, [zones]);
     useEffect(() => { setLocalItems(items); }, [items]);
@@ -64,6 +74,14 @@ export const SchematicView = ({
         centerView,
         cosFactor
     } = useSchematicViewport({ zones });
+
+    // Refs for viewport values used in non-reactive touch event handlers
+    const zoomRef = useRef(zoom);
+    useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+    const rotationRef = useRef(rotation);
+    useEffect(() => { rotationRef.current = rotation; }, [rotation]);
+    const cosFactorRef = useRef(cosFactor);
+    useEffect(() => { cosFactorRef.current = cosFactor; }, [cosFactor]);
 
     const {
         isDragging, setIsDragging,
@@ -93,8 +111,114 @@ export const SchematicView = ({
         }
     };
 
+    // --- TOUCH HANDLERS (pinch zoom, pan, item drag) ---
+    useEffect(() => {
+        const svg = svgRef.current;
+        if (!svg) return;
+
+        const onTouchStart = (e: TouchEvent) => {
+            if (draggingItemIdRef.current) return; // item handler takes over
+            if (e.touches.length === 1) {
+                lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                lastPinchDistRef.current = null;
+            } else if (e.touches.length === 2) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                lastPinchDistRef.current = Math.sqrt(dx * dx + dy * dy);
+                lastTouchRef.current = null;
+            }
+        };
+
+        const onTouchMove = (e: TouchEvent) => {
+            e.preventDefault();
+            const curZoom = zoomRef.current;
+            const curRotation = rotationRef.current;
+            const curCosFactor = cosFactorRef.current;
+            const SCALE = 100000;
+
+            if (draggingItemIdRef.current && e.touches.length === 1 && lastTouchRef.current) {
+                // Convert screen delta → SVG viewBox delta → lat/lng delta
+                const ctmInverse = svg.getScreenCTM()?.inverse();
+                if (!ctmInverse) return;
+                const pt1 = svg.createSVGPoint();
+                pt1.x = lastTouchRef.current.x;
+                pt1.y = lastTouchRef.current.y;
+                const svgP1 = pt1.matrixTransform(ctmInverse);
+                const pt2 = svg.createSVGPoint();
+                pt2.x = e.touches[0].clientX;
+                pt2.y = e.touches[0].clientY;
+                const svgP2 = pt2.matrixTransform(ctmInverse);
+
+                // Undo scale then rotation to get world-space delta
+                const dvx = (svgP2.x - svgP1.x) / curZoom;
+                const dvy = (svgP2.y - svgP1.y) / curZoom;
+                const angle = -curRotation * Math.PI / 180;
+                const drx = dvx * Math.cos(angle) - dvy * Math.sin(angle);
+                const dry = dvx * Math.sin(angle) + dvy * Math.cos(angle);
+                const dLat = -dry / SCALE;
+                const dLng = drx / (SCALE * curCosFactor);
+
+                // Mark as drag if moved more than 5 screen px
+                const screenDx = e.touches[0].clientX - lastTouchRef.current.x;
+                const screenDy = e.touches[0].clientY - lastTouchRef.current.y;
+                if (Math.sqrt(screenDx * screenDx + screenDy * screenDy) > 5) {
+                    touchDraggedRef.current = true;
+                }
+
+                const itemId = draggingItemIdRef.current;
+                setLocalItems(prev => prev.map(item =>
+                    item.id === itemId ? { ...item, lat: item.lat + dLat, lng: item.lng + dLng } : item
+                ));
+                lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+
+            } else if (e.touches.length === 1 && lastTouchRef.current) {
+                // Single-finger pan
+                const dx = (e.touches[0].clientX - lastTouchRef.current.x) / curZoom;
+                const dy = (e.touches[0].clientY - lastTouchRef.current.y) / curZoom;
+                setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+                lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+
+            } else if (e.touches.length === 2 && lastPinchDistRef.current !== null) {
+                // Two-finger pinch zoom
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const scaleFactor = dist / lastPinchDistRef.current;
+                setZoom(prev => Math.min(Math.max(prev * scaleFactor, 0.1), 50));
+                lastPinchDistRef.current = dist;
+            }
+        };
+
+        const onTouchEnd = (e: TouchEvent) => {
+            if (draggingItemIdRef.current) {
+                if (touchDraggedRef.current) {
+                    // Save new item position
+                    const itemId = draggingItemIdRef.current;
+                    const item = localItemsRef.current.find(i => i.id === itemId);
+                    if (item) onUpdateItemRef.current(item.id, item.lat, item.lng);
+                } else {
+                    // It was a tap — switch to inventory so user can read the info
+                    setMobileTab('inventory');
+                }
+                draggingItemIdRef.current = null;
+                touchDraggedRef.current = false;
+            }
+            if (e.touches.length < 2) lastPinchDistRef.current = null;
+            if (e.touches.length === 0) lastTouchRef.current = null;
+        };
+
+        svg.addEventListener('touchstart', onTouchStart, { passive: false });
+        svg.addEventListener('touchmove', onTouchMove, { passive: false });
+        svg.addEventListener('touchend', onTouchEnd, { passive: false });
+        return () => {
+            svg.removeEventListener('touchstart', onTouchStart);
+            svg.removeEventListener('touchmove', onTouchMove);
+            svg.removeEventListener('touchend', onTouchEnd);
+        };
+    }, [setPanOffset, setZoom, setLocalItems]);
+
     // --- SIDEBAR HANDLERS (Rename Zone, Edit Item Metadata etc.) ---
-    // These could also be extracted to useSchematicSidebar or similar if needed, 
+    // These could also be extracted to useSchematicSidebar or similar if needed,
     // but they are relatively simple UI state handlers.
 
     const handleEditItem = (item: any, e?: React.MouseEvent) => {
@@ -109,12 +233,24 @@ export const SchematicView = ({
             setSelectedItemIds([item.id]);
             const meta = item.metadata ? (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata) : {};
             setEditingMetadata(meta);
+            // On mobile: switch to inventory so the user can read the plant info
+            setMobileTab('inventory');
         }
     };
 
     const handleSaveMetadata = () => {
         if (selectedItemIds.length > 0 && editingMetadata) {
-            onUpdateItem(selectedItemIds[0], undefined, undefined, editingMetadata);
+            const quantityRaw = editingMetadata.quantity;
+            let metadataToSave = editingMetadata;
+            if (quantityRaw !== undefined && quantityRaw !== '') {
+                const parsed = Number(quantityRaw);
+                if (!Number.isInteger(parsed) || parsed < 1) {
+                    alert('Quantity must be a positive whole number.');
+                    return;
+                }
+                metadataToSave = { ...editingMetadata, quantity: parsed };
+            }
+            onUpdateItem(selectedItemIds[0], undefined, undefined, metadataToSave);
             setSelectedItemIds([]);
             setEditingMetadata(null);
         }
@@ -264,10 +400,30 @@ export const SchematicView = ({
 
                                             return (
                                                 <g key={item.id} transform={`translate(${p.x}, ${p.y})`} className="cursor-pointer">
-                                                    <g transform={`rotate(${-rotation})`} onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleEditItem(item, e);
-                                                    }}>
+                                                    <g
+                                                        transform={`rotate(${-rotation})`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleEditItem(item, e);
+                                                        }}
+                                                        onTouchStart={(e) => {
+                                                            e.stopPropagation();
+                                                            draggingItemIdRef.current = item.id;
+                                                            touchDraggedRef.current = false;
+                                                            lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                                                            // Select the item immediately so it highlights
+                                                            setSelectedZoneIds([]);
+                                                            setSelectedItemIds([item.id]);
+                                                            const meta = item.metadata ? (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata) : {};
+                                                            setEditingMetadata(meta);
+                                                        }}
+                                                        onTouchEnd={(e) => {
+                                                            // Prevent the browser from synthesising a ghost click after
+                                                            // the touch sequence, which would land on a random sidebar
+                                                            // item once we switch to the inventory tab.
+                                                            e.preventDefault();
+                                                        }}
+                                                    >
                                                         {isSelected && <circle r={fontSize * 0.5} fill="none" stroke="#3b82f6" strokeWidth={0.1} strokeDasharray="0.5,0.5" className="animate-spin-slow" />}
                                                         <text textAnchor="middle" dominantBaseline="central" fontSize={fontSize}>{item.type === 'tree' ? '🌳' : item.type === 'pot' ? '🪴' : item.type === 'flower' ? '🌸' : '🌱'}</text>
                                                         {label && <text y={fontSize * 0.8} textAnchor="middle" fontSize={fontSize * 0.15} className="font-black uppercase">{label}</text>}
