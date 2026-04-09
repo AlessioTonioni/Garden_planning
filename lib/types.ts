@@ -24,6 +24,8 @@ export interface Seedling {
     transplantedAt: string | null;
     location: string | null;
     status: SeedlingStatus;
+    sproutedQuantity: number | null;
+    transplantedQuantity: number | null;
     notes: string | null;
     seed?: Seed;
 }

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Leaf, Plus, Edit2, Trash2, Package, MapPin, Calendar, Clock, Sprout, AlertCircle } from 'lucide-react';
-import { Seed, Seedling } from '@/lib/types';
+import { Seed, Seedling, SeedlingStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { renderNotes } from '@/lib/helpers';
 
@@ -12,6 +12,16 @@ interface ActiveSeedlingsProps {
     onDeleteSeedling: (id: string) => void;
 }
 
+type FilterOption = SeedlingStatus | 'all';
+
+const FILTER_OPTIONS: { value: FilterOption; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'seeded', label: 'Seeded' },
+    { value: 'sprouted', label: 'Sprouted' },
+    { value: 'transplanted', label: 'Transplanted' },
+    { value: 'failed', label: 'Failed' },
+];
+
 export const ActiveSeedlings: React.FC<ActiveSeedlingsProps> = ({
     seedlings,
     seeds,
@@ -19,6 +29,12 @@ export const ActiveSeedlings: React.FC<ActiveSeedlingsProps> = ({
     onEditSeedling,
     onDeleteSeedling
 }) => {
+    const [statusFilter, setStatusFilter] = useState<FilterOption>('all');
+
+    const filtered = statusFilter === 'all'
+        ? seedlings
+        : seedlings.filter(s => s.status === statusFilter);
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-4">
@@ -35,6 +51,31 @@ export const ActiveSeedlings: React.FC<ActiveSeedlingsProps> = ({
                     </button>
                 </div>
 
+                {/* Status filter */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                    {FILTER_OPTIONS.map(opt => {
+                        const count = opt.value === 'all' ? seedlings.length : seedlings.filter(s => s.status === opt.value).length;
+                        return (
+                            <button
+                                key={opt.value}
+                                onClick={() => setStatusFilter(opt.value)}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center gap-1.5",
+                                    statusFilter === opt.value
+                                        ? "bg-slate-900 text-white border-slate-900"
+                                        : "bg-slate-50 text-slate-400 border-slate-100 hover:border-slate-300"
+                                )}
+                            >
+                                {opt.label}
+                                <span className={cn(
+                                    "px-1.5 py-0.5 rounded-full text-[9px] font-black",
+                                    statusFilter === opt.value ? "bg-white/20 text-white" : "bg-slate-200 text-slate-500"
+                                )}>{count}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+
                 {seedlings.length === 0 ? (
                     <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-20 flex flex-col items-center justify-center text-center shadow-sm">
                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
@@ -43,9 +84,13 @@ export const ActiveSeedlings: React.FC<ActiveSeedlingsProps> = ({
                         <h4 className="text-slate-900 font-bold mb-1">No active seedlings</h4>
                         <p className="text-slate-400 text-sm max-w-xs">Start your first batch by selecting a seed from your inventory.</p>
                     </div>
+                ) : filtered.length === 0 ? (
+                    <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-12 flex flex-col items-center justify-center text-center shadow-sm">
+                        <p className="text-slate-400 text-sm font-bold">No batches match this filter.</p>
+                    </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {seedlings.map(seedling => (
+                        {filtered.map(seedling => (
                             <div key={seedling.id} className="group bg-white border border-slate-100 p-6 rounded-3xl hover:border-green-200 transition-all duration-500 hover:shadow-2xl hover:shadow-green-100 relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-24 h-24 bg-green-50 rounded-full -mr-12 -mt-12 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -82,7 +127,7 @@ export const ActiveSeedlings: React.FC<ActiveSeedlingsProps> = ({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="flex items-center gap-2 text-slate-500">
                                         <Package size={14} className="text-slate-300" />
-                                        <span className="text-xs font-bold leading-none">{seedling.quantity} Seedlings</span>
+                                        <span className="text-xs font-bold leading-none">{seedling.quantity} Sowed</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-slate-500">
                                         <MapPin size={14} className="text-slate-300" />
@@ -101,6 +146,54 @@ export const ActiveSeedlings: React.FC<ActiveSeedlingsProps> = ({
                                         </span>
                                     </div>
                                 </div>
+
+                                {/* Stage progression */}
+                                {(seedling.sproutedQuantity != null || seedling.transplantedQuantity != null) && (
+                                    <div className="mt-4 pt-4 border-t border-slate-100">
+                                        <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                                            Batch Progress
+                                        </div>
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                            <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold">{seedling.quantity} sowed</span>
+                                            {seedling.sproutedQuantity != null && (
+                                                <>
+                                                    <span className="text-slate-300">→</span>
+                                                    <span className={cn(
+                                                        "px-2 py-0.5 rounded-full text-xs font-bold",
+                                                        seedling.sproutedQuantity / seedling.quantity >= 0.7
+                                                            ? "bg-green-50 text-green-700"
+                                                            : seedling.sproutedQuantity / seedling.quantity >= 0.4
+                                                            ? "bg-yellow-50 text-yellow-700"
+                                                            : "bg-red-50 text-red-700"
+                                                    )}>
+                                                        {seedling.sproutedQuantity} sprouted
+                                                        <span className="ml-1 opacity-60">
+                                                            ({Math.round(seedling.sproutedQuantity / seedling.quantity * 100)}%)
+                                                        </span>
+                                                    </span>
+                                                </>
+                                            )}
+                                            {seedling.transplantedQuantity != null && (
+                                                <>
+                                                    <span className="text-slate-300">→</span>
+                                                    <span className={cn(
+                                                        "px-2 py-0.5 rounded-full text-xs font-bold",
+                                                        seedling.transplantedQuantity / (seedling.sproutedQuantity ?? seedling.quantity) >= 0.7
+                                                            ? "bg-blue-50 text-blue-700"
+                                                            : seedling.transplantedQuantity / (seedling.sproutedQuantity ?? seedling.quantity) >= 0.4
+                                                            ? "bg-yellow-50 text-yellow-700"
+                                                            : "bg-red-50 text-red-700"
+                                                    )}>
+                                                        {seedling.transplantedQuantity} transplanted
+                                                        <span className="ml-1 opacity-60">
+                                                            ({Math.round(seedling.transplantedQuantity / (seedling.sproutedQuantity ?? seedling.quantity) * 100)}%)
+                                                        </span>
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

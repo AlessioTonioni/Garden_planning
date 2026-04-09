@@ -12,6 +12,17 @@ interface SeedlingFormModalProps {
     setEditingSeedling: (seedling: Partial<Seedling> | null) => void;
 }
 
+// Which status transitions require a "how many made it?" count
+const STAGE_QUANTITY_FIELD: Partial<Record<SeedlingStatus, keyof Seedling>> = {
+    sprouted: 'sproutedQuantity',
+    transplanted: 'transplantedQuantity',
+};
+
+const STAGE_LABELS: Partial<Record<SeedlingStatus, string>> = {
+    sprouted: 'How many seeds sprouted?',
+    transplanted: 'How many seedlings were transplanted?',
+};
+
 export const SeedlingFormModal: React.FC<SeedlingFormModalProps> = ({
     isOpen,
     onClose,
@@ -25,6 +36,10 @@ export const SeedlingFormModal: React.FC<SeedlingFormModalProps> = ({
             onUpdate(editingSeedling.id, editingSeedling);
         }
     };
+
+    const stageField = editingSeedling?.status ? STAGE_QUANTITY_FIELD[editingSeedling.status] : undefined;
+    const stageLabel = editingSeedling?.status ? STAGE_LABELS[editingSeedling.status] : undefined;
+    const stageValue = stageField ? (editingSeedling?.[stageField] as number | null | undefined) : undefined;
 
     return (
         <Modal
@@ -54,6 +69,34 @@ export const SeedlingFormModal: React.FC<SeedlingFormModalProps> = ({
                             ))}
                         </div>
                     </div>
+
+                    {stageField && stageLabel && (
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">
+                                {stageLabel}
+                            </label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={editingSeedling?.quantity ?? undefined}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold text-slate-900 focus:outline-none"
+                                    value={stageValue ?? ''}
+                                    onChange={e => setEditingSeedling({
+                                        ...editingSeedling!,
+                                        [stageField]: e.target.value === '' ? null : Number(e.target.value)
+                                    })}
+                                    placeholder={`out of ${editingSeedling?.quantity ?? '?'}`}
+                                />
+                                {editingSeedling?.quantity != null && (
+                                    <span className="text-xs text-slate-400 font-bold whitespace-nowrap">
+                                        / {editingSeedling.quantity}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Location</label>
                         <input

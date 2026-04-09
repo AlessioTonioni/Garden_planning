@@ -23,7 +23,7 @@ export async function PATCH(
     try {
         const { id } = await params;
         const body = await request.json();
-        const { quantity, seededAt, expectedSproutAt, sproutedAt, transplantedAt, location, status, notes } = body;
+        const { quantity, seededAt, expectedSproutAt, sproutedAt, transplantedAt, location, status, sproutedQuantity, transplantedQuantity, notes } = body;
 
         const updated = db.transaction((tx) => {
             const [oldSeedling] = tx.select({
@@ -44,6 +44,8 @@ export async function PATCH(
             if (transplanted !== undefined)                 updateData.transplantedAt = transplanted;
             if (location !== undefined)                     updateData.location = location;
             if (status !== undefined)                       updateData.status = status;
+            if (sproutedQuantity !== undefined)             updateData.sproutedQuantity = sproutedQuantity === null ? null : Number(sproutedQuantity);
+            if (transplantedQuantity !== undefined)         updateData.transplantedQuantity = transplantedQuantity === null ? null : Number(transplantedQuantity);
             if (notes !== undefined)                        updateData.notes = notes;
 
             const [seedling] = tx.update(seedlings)
