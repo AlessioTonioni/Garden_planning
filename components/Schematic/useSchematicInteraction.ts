@@ -1,5 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 
+interface CopiedItem {
+    zoneId: string;
+    lat: number;
+    lng: number;
+    type: string;
+    metadata: any;
+}
+
 interface UseSchematicInteractionProps {
     rotation: number;
     zoom: number;
@@ -8,6 +16,8 @@ interface UseSchematicInteractionProps {
     unproject: (x: number, y: number) => { lat: number; lng: number };
     contentBounds: { centerX: number; centerY: number };
     onPlace: (zoneId: string, lat: number, lng: number, type: string) => void;
+    onPaste: (copies: CopiedItem[]) => Promise<string[]>;
+    onDeleteItem: (id: string) => void;
     onUpdateZone: (id: string, updates: any) => void;
     onUpdateItem: (id: string, lat?: number, lng?: number, metadata?: any) => void;
     activeTool: string | null;
@@ -16,6 +26,7 @@ interface UseSchematicInteractionProps {
     setSelectedZoneId: (id: string | null) => void;
     selectedItemIds: string[];
     setSelectedItemId: (id: string | null) => void;
+    setSelectedItemIds: (ids: string[]) => void;
     localZones: any[];
     setLocalZones: React.Dispatch<React.SetStateAction<any[]>>;
     localItems: any[];
@@ -26,10 +37,10 @@ interface UseSchematicInteractionProps {
 
 export const useSchematicInteraction = ({
     rotation, zoom, panOffset, setPanOffset, unproject, contentBounds,
-    onPlace, onUpdateZone, onUpdateItem,
+    onPlace, onPaste, onDeleteItem, onUpdateZone, onUpdateItem,
     activeTool, setActiveTool,
     selectedZoneIds, setSelectedZoneId,
-    selectedItemIds, setSelectedItemId,
+    selectedItemIds, setSelectedItemId, setSelectedItemIds,
     localZones, setLocalZones,
     localItems, setLocalItems,
     cosFactor, svgRef
@@ -38,11 +49,58 @@ export const useSchematicInteraction = ({
     const [isDragging, setIsDragging] = useState(false);
     const [draggingVertex, setDraggingVertex] = useState<{ zoneId: string, vertexIndex: number } | null>(null);
     const lastMousePos = useRef({ x: 0, y: 0 });
+    const clipboardRef = useRef<CopiedItem[]>([]);
 
     // --- KEYBOARD MOVEMENT ---
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+            // --- COPY (Cmd/Ctrl + C) ---
+            if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+                if (selectedItemIds.length > 0) {
+                    e.preventDefault();
+                    clipboardRef.current = localItems
+                        .filter(item => selectedItemIds.includes(item.id))
+                        .map(item => ({
+                            zoneId: item.zoneId,
+                            lat: item.lat,
+                            lng: item.lng,
+                            type: item.type,
+                            metadata: typeof item.metadata === 'string' ? JSON.parse(item.metadata) : (item.metadata || {})
+                        }));
+                }
+                return;
+            }
+
+            // --- PASTE (Cmd/Ctrl + V) ---
+            if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+                if (clipboardRef.current.length > 0) {
+                    e.preventDefault();
+                    // Offset paste ~50cm to the south-east so it's visually distinct
+                    const OFFSET_LAT = 0.0000045;
+                    const OFFSET_LNG = 0.0000045 / cosFactor;
+                    const copies = clipboardRef.current.map(item => ({
+                        ...item,
+                        lat: item.lat + OFFSET_LAT,
+                        lng: item.lng + OFFSET_LNG,
+                    }));
+                    onPaste(copies).then(newIds => {
+                        if (newIds.length > 0) setSelectedItemIds(newIds);
+                    });
+                }
+                return;
+            }
+
+            // --- DELETE (Backspace / Delete) ---
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                if (selectedItemIds.length > 0) {
+                    e.preventDefault();
+                    selectedItemIds.forEach(id => onDeleteItem(id));
+                    setSelectedItemIds([]);
+                }
+                return;
+            }
 
             const wasdKeys = ['w', 'a', 's', 'd', 'W', 'A', 'S', 'D'];
             if (wasdKeys.includes(e.key)) {
@@ -118,7 +176,7 @@ export const useSchematicInteraction = ({
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, [selectedZoneIds, selectedItemIds, activeTool, cosFactor, rotation, zoom, onUpdateZone, onUpdateItem, localItems, localZones, setPanOffset]);
+    }, [selectedZoneIds, selectedItemIds, activeTool, cosFactor, rotation, zoom, onUpdateZone, onUpdateItem, onPaste, onDeleteItem, localItems, localZones, setPanOffset, setSelectedItemIds]);
 
     // --- MOUSE HANDLERS ---
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -162,9 +220,12 @@ export const useSchematicInteraction = ({
             return;
         }
 
-        if (isDragging) {
-            const dx = (e.clientX - lastMousePos.current.x) / zoom;
-            const dy = (e.clientY - lastMousePos.current.y) / zoom;
+        if (isDragging && svgRef.current) {
+            const ctm = svgRef.current.getScreenCTM();
+            const sx = ctm ? 1 / ctm.a : 1;
+            const sy = ctm ? 1 / ctm.d : 1;
+            const dx = (e.clientX - lastMousePos.current.x) * sx;
+            const dy = (e.clientY - lastMousePos.current.y) * sy;
             setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
             lastMousePos.current = { x: e.clientX, y: e.clientY };
         }

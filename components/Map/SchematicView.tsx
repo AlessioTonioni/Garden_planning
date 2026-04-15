@@ -8,11 +8,20 @@ import { SchematicTools } from '../Schematic/SchematicTools';
 import { SchematicSidebar } from '../Schematic/SchematicSidebar';
 import { AIChat } from '../AI/AIChat';
 
+interface CopiedItem {
+    zoneId: string;
+    lat: number;
+    lng: number;
+    type: string;
+    metadata: any;
+}
+
 interface SchematicViewProps {
     zones: any[];
     items: any[];
     onClose: () => void;
     onPlace: (zoneId: string, lat: number, lng: number, type: string) => void;
+    onPaste: (copies: CopiedItem[]) => Promise<string[]>;
     onDeleteItem: (id: string) => void;
     onUpdateItem: (id: string, lat?: number, lng?: number, metadata?: any) => void;
     onUpdateZone: (id: string, updates: any) => void;
@@ -24,7 +33,7 @@ interface SchematicViewProps {
 }
 
 export const SchematicView = ({
-    zones, items, onClose, onPlace, onDeleteItem, onUpdateItem, onUpdateZone,
+    zones, items, onClose, onPlace, onPaste, onDeleteItem, onUpdateItem, onUpdateZone,
     isPrimary = false,
     globalSelectedZoneIds = [],
     setGlobalSelectedZoneIds = (() => { }) as any,
@@ -90,10 +99,12 @@ export const SchematicView = ({
         handleZoneClick
     } = useSchematicInteraction({
         rotation, zoom, panOffset, setPanOffset, unproject, contentBounds,
-        onPlace, onUpdateZone, onUpdateItem,
+        onPlace, onPaste, onDeleteItem, onUpdateZone, onUpdateItem,
         activeTool, setActiveTool,
         selectedZoneIds, setSelectedZoneId: (id) => setSelectedZoneIds(id ? [id] : []),
-        selectedItemIds, setSelectedItemId: (id) => setSelectedItemIds(id ? [id] : []),
+        selectedItemIds,
+        setSelectedItemId: (id) => setSelectedItemIds(id ? [id] : []),
+        setSelectedItemIds,
         localZones, setLocalZones,
         localItems, setLocalItems,
         cosFactor, svgRef
@@ -173,8 +184,11 @@ export const SchematicView = ({
 
             } else if (e.touches.length === 1 && lastTouchRef.current) {
                 // Single-finger pan
-                const dx = (e.touches[0].clientX - lastTouchRef.current.x) / curZoom;
-                const dy = (e.touches[0].clientY - lastTouchRef.current.y) / curZoom;
+                const ctm = svg.getScreenCTM();
+                const sx = ctm ? 1 / ctm.a : 1;
+                const sy = ctm ? 1 / ctm.d : 1;
+                const dx = (e.touches[0].clientX - lastTouchRef.current.x) * sx;
+                const dy = (e.touches[0].clientY - lastTouchRef.current.y) * sy;
                 setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
                 lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 

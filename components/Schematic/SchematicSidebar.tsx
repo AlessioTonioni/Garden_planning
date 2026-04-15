@@ -111,7 +111,7 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                                                     <span className="text-[8px] font-bold text-slate-400">Lat: {item.lat.toFixed(5)}</span>
                                                 </div>
                                             </div>
-                                            {!isEditing && <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete?')) onDeleteItem(item.id); }} className="text-slate-300 hover:text-red-500"><Trash2 size={14} /></button>}
+                                            <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete?')) onDeleteItem(item.id); }} className="text-slate-300 hover:text-red-500"><Trash2 size={14} /></button>
                                         </div>
                                         {metadata?.notes && !isEditing && (
                                             <div className="text-[10px] text-slate-500 leading-relaxed bg-white/50 p-2 rounded-lg border border-slate-100/50">

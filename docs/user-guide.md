@@ -41,6 +41,7 @@ The main garden planning interface.
 **Features:**
 - Visual map of your garden zones
 - Place plants, trees, pots, and flowers
+- Copy/paste items to duplicate them
 - Edit metadata (species, variety, planting date, notes)
 - Zone inventory sidebar
 
@@ -52,7 +53,13 @@ The main garden planning interface.
 | Rotate | Rotation slider in toolbar |
 | Place item | Select zone → Click tool → Click on zone |
 | Edit item | Click on item in map or sidebar |
-| Move item | Arrow keys (with item selected) |
+| Move item | Arrow keys (with item selected) or drag |
+| Copy item(s) | Select + Cmd/Ctrl+C |
+| Paste item(s) | Cmd/Ctrl+V — spawns ~50 cm offset, pre-selected for immediate drag |
+| Delete item(s) | Select + Backspace or Delete |
+| Multi-select | Cmd/Ctrl+Click on items or zones |
+
+**On mobile:** a two-tab bar at the bottom switches between the Map canvas and the Inventory panel. Tapping an item on the map automatically switches to Inventory to show its details.
 
 ### 🌍 Setup View
 Aerial map view for creating and managing zones.
@@ -70,8 +77,10 @@ Track your seed starting indoors.
 
 **Features:**
 - Manage seed inventory (species, quantity, expiry)
-- Track seedlings (seeded, sprouted, transplanted)
-- Record dates and locations
+- Track seedling batches through stages: seeded → sprouted → transplanted / failed
+- Record per-stage quantities (how many sprouted, how many transplanted)
+- Attach photos to seedling batches
+- Filter batches by status
 
 ---
 
@@ -112,9 +121,10 @@ Click the 🤖 button in the bottom-right corner to open the AI chat.
 
 1. **Create zones first** in the Setup view before adding plants
 2. **Use descriptive names** for zones (e.g., "Tomato Bed 2024")
-3. **Track watering/fertilizing** using the zone action buttons
-4. **Export your data** using the Export button in the navigation
-5. **Use the AI** for companion planting suggestions
+3. **Track watering/fertilizing** using the zone action buttons in the sidebar
+4. **Duplicate plants** with Cmd+C / Cmd+V — useful for repeating the same species across a bed
+5. **Back up your data** using the Export button in the navigation bar — downloads a JSON file with all zones and seeds. Use Import to restore from a backup.
+6. **Use the AI** for companion planting suggestions
 
 ---
 
@@ -128,6 +138,9 @@ Click the 🤖 button in the bottom-right corner to open the AI chat.
 | D | Pan right |
 | ↑↓←→ | Move selected item/zone |
 | Scroll | Zoom in/out |
+| Cmd/Ctrl + C | Copy selected item(s) |
+| Cmd/Ctrl + V | Paste copied item(s) |
+| Backspace / Delete | Delete selected item(s) |
 
 ---
 

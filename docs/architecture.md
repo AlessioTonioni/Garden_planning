@@ -149,10 +149,14 @@ User Action → Local State (optimistic) → API Route → Drizzle ORM → SQLit
 ### SchematicView (Planner)
 Refactored into composable pieces:
 - `useSchematicViewport`: Zoom, pan, rotation, projection math
-- `useSchematicInteraction`: Mouse/keyboard events, tool placement
+- `useSchematicInteraction`: Mouse/keyboard events, tool placement, copy/paste, delete
 - `SchematicToolbar`: Bottom controls (zoom, rotate, reset)
 - `SchematicTools`: Tool palette (plant, tree, pot, flower)
 - `SchematicSidebar`: Zone inventory and item editing
+
+**Pan implementation note:** Panning converts screen-pixel deltas to SVG viewBox units using `svg.getScreenCTM().a` — not by dividing by `zoom`. The `zoom` is a nested SVG `scale()` transform inside the viewBox, so the viewBox-to-screen ratio is constant regardless of zoom level. This makes drag-to-pan feel uniform at all zoom levels.
+
+**Copy/paste:** `useSchematicInteraction` maintains an in-memory `clipboardRef`. Cmd+C snapshots the selected items (preserving type, position, and full metadata). Cmd+V posts new placements via `onPaste` (which returns the new IDs) and immediately selects the pasted items so they can be dragged to their final position.
 
 ### AIChat
 Floating chat widget with:
@@ -161,6 +165,13 @@ Floating chat widget with:
 - Debug mode to inspect prompts
 - Reset chat functionality
 
+### Mobile Layout
+The Planner view uses a two-tab bottom bar on small screens:
+- **Map** tab: shows the SVG canvas
+- **Inventory** tab: shows the sidebar (zone/item details)
+
+Tapping an item on the canvas automatically switches to the Inventory tab.
+
 ### Keyboard Shortcuts
 | Key | Action |
 |-----|--------|
@@ -168,6 +179,9 @@ Floating chat widget with:
 | Arrow keys | Move selected item/zone |
 | Mouse wheel | Zoom |
 | Click + drag | Pan (planner) |
+| Cmd/Ctrl + C | Copy selected item(s) |
+| Cmd/Ctrl + V | Paste copied item(s) ~50 cm offset |
+| Backspace / Delete | Delete selected item(s) |
 
 ---
 

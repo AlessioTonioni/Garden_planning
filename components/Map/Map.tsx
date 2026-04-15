@@ -68,6 +68,23 @@ const Map: React.FC<MapProps> = ({
     const activeZone = zones.find(z => z.id === selectedZoneId);
     const allPlacements = zones.flatMap(z => z.placements || []);
 
+    const handlePaste = async (copies: Array<{ zoneId: string; lat: number; lng: number; type: string; metadata: any }>) => {
+        const newIds: string[] = [];
+        for (const copy of copies) {
+            const res = await fetch('/api/placements', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(copy),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                newIds.push(data.id);
+            }
+        }
+        loadZones();
+        return newIds;
+    };
+
     return (
         <>
             {showSchematic && (
@@ -76,6 +93,7 @@ const Map: React.FC<MapProps> = ({
                     items={allPlacements}
                     onClose={() => setShowSchematic(false)}
                     onPlace={(zoneId, lat, lng, type) => handlePlaceItem(lat, lng, zoneId, type)}
+                    onPaste={handlePaste}
                     onDeleteItem={handleDeleteItem}
                     onUpdateItem={handleUpdateItem}
                     onUpdateZone={handleUpdateZone}
