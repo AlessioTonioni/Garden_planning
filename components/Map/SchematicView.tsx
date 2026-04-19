@@ -61,6 +61,7 @@ export const SchematicView = ({
     // --- TOUCH INTERACTION REFS (stable ones, no viewport deps) ---
     const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
     const lastPinchDistRef = useRef<number | null>(null);
+    const lastPinchAngleRef = useRef<number | null>(null);
     const draggingItemIdRef = useRef<string | null>(null);
     const touchDraggedRef = useRef(false);
     const localItemsRef = useRef(localItems);
@@ -136,6 +137,7 @@ export const SchematicView = ({
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
                 lastPinchDistRef.current = Math.sqrt(dx * dx + dy * dy);
+                lastPinchAngleRef.current = Math.atan2(dy, dx) * 180 / Math.PI;
                 lastTouchRef.current = null;
             }
         };
@@ -193,13 +195,23 @@ export const SchematicView = ({
                 lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 
             } else if (e.touches.length === 2 && lastPinchDistRef.current !== null) {
-                // Two-finger pinch zoom
+                // Two-finger pinch zoom + rotate
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 const scaleFactor = dist / lastPinchDistRef.current;
                 setZoom(prev => Math.min(Math.max(prev * scaleFactor, 0.1), 50));
                 lastPinchDistRef.current = dist;
+
+                if (lastPinchAngleRef.current !== null) {
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                    let dAngle = angle - lastPinchAngleRef.current;
+                    // Clamp to [-180, 180] to avoid wrap-around jumps
+                    if (dAngle > 180) dAngle -= 360;
+                    if (dAngle < -180) dAngle += 360;
+                    setRotation(prev => (prev + dAngle + 360) % 360);
+                    lastPinchAngleRef.current = angle;
+                }
             }
         };
 
@@ -229,7 +241,7 @@ export const SchematicView = ({
             svg.removeEventListener('touchmove', onTouchMove);
             svg.removeEventListener('touchend', onTouchEnd);
         };
-    }, [setPanOffset, setZoom, setLocalItems]);
+    }, [setPanOffset, setZoom, setRotation, setLocalItems]);
 
     // --- SIDEBAR HANDLERS (Rename Zone, Edit Item Metadata etc.) ---
     // These could also be extracted to useSchematicSidebar or similar if needed,
