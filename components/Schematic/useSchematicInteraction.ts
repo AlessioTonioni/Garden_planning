@@ -51,6 +51,12 @@ export const useSchematicInteraction = ({
     const lastMousePos = useRef({ x: 0, y: 0 });
     const clipboardRef = useRef<CopiedItem[]>([]);
 
+    // Always-current refs so keyUp handlers never read stale closure values
+    const localItemsRef = useRef(localItems);
+    useEffect(() => { localItemsRef.current = localItems; }, [localItems]);
+    const localZonesRef = useRef(localZones);
+    useEffect(() => { localZonesRef.current = localZones; }, [localZones]);
+
     // --- KEYBOARD MOVEMENT ---
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -159,12 +165,12 @@ export const useSchematicInteraction = ({
 
             if (selectedItemIds.length > 0) {
                 selectedItemIds.forEach(id => {
-                    const item = localItems.find(i => i.id === id);
+                    const item = localItemsRef.current.find(i => i.id === id);
                     if (item) onUpdateItem(item.id, item.lat, item.lng);
                 });
             } else if (selectedZoneIds.length > 0) {
                 selectedZoneIds.forEach(id => {
-                    const zone = localZones.find(z => z.id === id);
+                    const zone = localZonesRef.current.find(z => z.id === id);
                     if (zone) onUpdateZone(zone.id, { geoJson: JSON.stringify(zone.geoJson) });
                 });
             }
@@ -176,7 +182,7 @@ export const useSchematicInteraction = ({
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, [selectedZoneIds, selectedItemIds, activeTool, cosFactor, rotation, zoom, onUpdateZone, onUpdateItem, onPaste, onDeleteItem, localItems, localZones, setPanOffset, setSelectedItemIds]);
+    }, [selectedZoneIds, selectedItemIds, activeTool, cosFactor, rotation, zoom, onUpdateZone, onUpdateItem, onPaste, onDeleteItem, setPanOffset, setSelectedItemIds]);
 
     // --- MOUSE HANDLERS ---
     const handleMouseDown = (e: React.MouseEvent) => {
