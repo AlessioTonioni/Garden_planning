@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
-import { Layers, Droplets, FlaskConical, Trash2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Layers, Droplets, FlaskConical, Trash2, Search, X } from 'lucide-react';
 import { calculateArea } from '../Map/utils';
 import { renderNotes } from '@/lib/helpers';
+import { ITEM_TYPES, ITEM_EMOJI } from '@/lib/constants';
 
 interface SchematicSidebarProps {
     zones: any[];
@@ -38,6 +39,8 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
 }) => {
     const itemRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
     const zoneRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+    const [searchText, setSearchText] = useState('');
+    const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         if (selectedItemId && itemRefs.current[selectedItemId]) {
@@ -59,13 +62,64 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
 
     return (
         <aside className={`${mobileVisible ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-96 bg-white border-t md:border-t-0 md:border-l shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[30] p-6 md:p-8 overflow-y-auto`}>
-            <div className="flex items-center gap-2 mb-8">
+            <div className="flex items-center gap-2 mb-4">
                 <Layers size={14} className="text-green-600" />
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Garden Inventory</h3>
             </div>
 
+            <div className="flex flex-col gap-3 mb-6">
+                <div className="relative">
+                    <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                        type="text"
+                        placeholder="Search plants, species, notes…"
+                        value={searchText}
+                        onChange={e => setSearchText(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-8 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-green-400 focus:bg-white transition-colors"
+                    />
+                    {searchText && (
+                        <button onClick={() => setSearchText('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                    {ITEM_TYPES.map(type => {
+                        const active = activeTypes.has(type);
+                        return (
+                            <button
+                                key={type}
+                                onClick={() => setActiveTypes(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(type)) next.delete(type); else next.add(type);
+                                    return next;
+                                })}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase border transition-all ${active ? 'bg-green-100 border-green-400 text-green-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'}`}
+                            >
+                                <span>{ITEM_EMOJI[type]}</span>
+                                {type}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
             {zones.map(zone => {
-                const zoneItems = items.filter(i => i.zoneId === zone.id);
+                const q = searchText.toLowerCase();
+                const zoneItems = items.filter(i => {
+                    if (i.zoneId !== zone.id) return false;
+                    if (activeTypes.size > 0 && !activeTypes.has(i.type)) return false;
+                    if (!q) return true;
+                    const meta = typeof i.metadata === 'string' ? JSON.parse(i.metadata) : (i.metadata ?? {});
+                    return (
+                        i.type.includes(q) ||
+                        (meta.species ?? '').toLowerCase().includes(q) ||
+                        (meta.variety ?? '').toLowerCase().includes(q) ||
+                        (meta.notes ?? '').toLowerCase().includes(q)
+                    );
+                });
+                const isFiltering = searchText || activeTypes.size > 0;
+                if (isFiltering && zoneItems.length === 0) return null;
                 const isSelected = selectedZoneIds.includes(zone.id);
 
                 return (
