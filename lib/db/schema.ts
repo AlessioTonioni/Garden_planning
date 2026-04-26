@@ -41,6 +41,21 @@ export const seeds = sqliteTable('Seed', {
     harvestingEnd:   integer('harvestingEnd'),
 });
 
+export const tasks = sqliteTable('Task', {
+    id:              text('id').primaryKey().$defaultFn(() => createId()),
+    createdAt:       integer('createdAt', { mode: 'timestamp' }).$defaultFn(now).notNull(),
+    updatedAt:       integer('updatedAt', { mode: 'timestamp' }).$defaultFn(now).notNull(),
+    title:           text('title').notNull(),
+    description:     text('description'),
+    status:          text('status').notNull().default('open'),
+    dueDate:         integer('dueDate', { mode: 'timestamp' }),
+    zoneId:          text('zoneId').references(() => zones.id, { onDelete: 'set null' }),
+    placementId:     text('placementId'),
+    placementLabel:  text('placementLabel'),
+    recurrence:      text('recurrence'),
+    lastCompletedAt: integer('lastCompletedAt', { mode: 'timestamp' }),
+});
+
 export const seedlings = sqliteTable('Seedling', {
     id:               text('id').primaryKey().$defaultFn(() => createId()),
     createdAt:        integer('createdAt', { mode: 'timestamp' }).$defaultFn(now).notNull(),

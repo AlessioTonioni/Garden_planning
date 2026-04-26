@@ -13,15 +13,19 @@ interface MapWrapperProps {
     setSelectedZoneIds: React.Dispatch<React.SetStateAction<string[]>>;
     selectedItemIds: string[];
     setSelectedItemIds: React.Dispatch<React.SetStateAction<string[]>>;
+    tasks?: any[];
+    onNavigateToTasks?: (zoneId: string) => void;
 }
 
-const MapWrapper = ({ initialView = 'map', selectedZoneIds, setSelectedZoneIds, selectedItemIds, setSelectedItemIds }: MapWrapperProps) => {
+const MapWrapper = ({ initialView = 'map', selectedZoneIds, setSelectedZoneIds, selectedItemIds, setSelectedItemIds, tasks, onNavigateToTasks }: MapWrapperProps) => {
     return <Map
         initialView={initialView}
         globalSelectedZoneIds={selectedZoneIds}
         setGlobalSelectedZoneIds={setSelectedZoneIds}
         globalSelectedItemIds={selectedItemIds}
         setGlobalSelectedItemIds={setSelectedItemIds}
+        tasks={tasks}
+        onNavigateToTasks={onNavigateToTasks}
     />;
 };
 

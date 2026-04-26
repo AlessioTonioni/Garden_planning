@@ -26,6 +26,8 @@ interface MapProps {
     setGlobalSelectedZoneIds?: React.Dispatch<React.SetStateAction<string[]>>;
     globalSelectedItemIds?: string[];
     setGlobalSelectedItemIds?: React.Dispatch<React.SetStateAction<string[]>>;
+    tasks?: any[];
+    onNavigateToTasks?: (zoneId: string) => void;
 }
 
 const Map: React.FC<MapProps> = ({
@@ -33,7 +35,9 @@ const Map: React.FC<MapProps> = ({
     globalSelectedZoneIds,
     setGlobalSelectedZoneIds,
     globalSelectedItemIds,
-    setGlobalSelectedItemIds
+    setGlobalSelectedItemIds,
+    tasks,
+    onNavigateToTasks,
 }) => {
     const featureGroupRef = useRef<L.FeatureGroup | null>(null);
     const [showSchematic, setShowSchematic] = useState(initialView === 'schematic');
@@ -102,6 +106,8 @@ const Map: React.FC<MapProps> = ({
                     setGlobalSelectedZoneIds={setGlobalSelectedZoneIds}
                     globalSelectedItemIds={globalSelectedItemIds}
                     setGlobalSelectedItemIds={setGlobalSelectedItemIds}
+                    tasks={tasks}
+                    onNavigateToTasks={onNavigateToTasks}
                 />
             )}
 

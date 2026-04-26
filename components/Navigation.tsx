@@ -1,17 +1,18 @@
 'use client';
 
 import React from 'react';
-import { Map as MapIcon, Sprout, LayoutDashboard } from 'lucide-react';
+import { Map as MapIcon, Sprout, LayoutDashboard, ListTodo } from 'lucide-react';
 import { cn } from '@/lib/utils'; // Assuming this utility exists or I'll create it
 
 import BackupControls from './Map/BackupControls';
 
 interface NavigationProps {
-    activeView: 'planner' | 'seedbed' | 'setup';
-    onViewChange: (view: 'planner' | 'seedbed' | 'setup') => void;
+    activeView: 'planner' | 'seedbed' | 'tasks' | 'setup';
+    onViewChange: (view: 'planner' | 'seedbed' | 'tasks' | 'setup') => void;
+    taskOverdueCount?: number;
 }
 
-const Navigation: React.FC<NavigationProps> = ({ activeView, onViewChange }) => {
+const Navigation: React.FC<NavigationProps> = ({ activeView, onViewChange, taskOverdueCount = 0 }) => {
     return (
         <header className="fixed top-0 left-0 right-0 z-[101] px-3 md:px-6 py-2 md:py-4 flex items-center gap-2 pointer-events-none">
             {/* Branding - Far Left */}
@@ -57,6 +58,23 @@ const Navigation: React.FC<NavigationProps> = ({ activeView, onViewChange }) => 
                     >
                         <Sprout size={18} className={cn("transition-transform duration-500", activeView === 'seedbed' && "rotate-12")} />
                         <span className="hidden sm:inline">Seedbed</span>
+                    </button>
+                    <button
+                        onClick={() => onViewChange('tasks')}
+                        className={cn(
+                            "relative flex items-center gap-1.5 px-3 md:px-6 py-1.5 md:py-2 rounded-xl transition-all duration-500 font-bold text-sm tracking-tight whitespace-nowrap",
+                            activeView === 'tasks'
+                                ? "bg-green-600 text-white shadow-lg shadow-green-200 scale-105"
+                                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                        )}
+                    >
+                        <ListTodo size={18} className={cn("transition-transform duration-500", activeView === 'tasks' && "rotate-12")} />
+                        <span className="hidden sm:inline">Tasks</span>
+                        {taskOverdueCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center shadow-sm">
+                                {taskOverdueCount > 9 ? '9+' : taskOverdueCount}
+                            </span>
+                        )}
                     </button>
                 </div>
 

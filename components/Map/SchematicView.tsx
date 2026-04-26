@@ -30,6 +30,8 @@ interface SchematicViewProps {
     setGlobalSelectedZoneIds?: React.Dispatch<React.SetStateAction<string[]>>;
     globalSelectedItemIds?: string[];
     setGlobalSelectedItemIds?: React.Dispatch<React.SetStateAction<string[]>>;
+    tasks?: any[];
+    onNavigateToTasks?: (zoneId: string) => void;
 }
 
 export const SchematicView = ({
@@ -38,7 +40,9 @@ export const SchematicView = ({
     globalSelectedZoneIds = [],
     setGlobalSelectedZoneIds = (() => { }) as any,
     globalSelectedItemIds = [],
-    setGlobalSelectedItemIds = (() => { }) as any
+    setGlobalSelectedItemIds = (() => { }) as any,
+    tasks = [],
+    onNavigateToTasks,
 }: SchematicViewProps) => {
 
     const selectedZoneIds = globalSelectedZoneIds;
@@ -493,6 +497,8 @@ export const SchematicView = ({
                     editingMetadata={editingMetadata}
                     setEditingMetadata={setEditingMetadata}
                     handleSaveMetadata={handleSaveMetadata}
+                    tasks={tasks}
+                    onNavigateToTasks={onNavigateToTasks}
                 />
             </div>
 

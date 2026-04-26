@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Layers, Droplets, FlaskConical, Trash2, Search, X } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Layers, Droplets, FlaskConical, Trash2, Search, X, ListTodo } from 'lucide-react';
 import { calculateArea } from '../Map/utils';
 import { renderNotes } from '@/lib/helpers';
 import { ITEM_TYPES, ITEM_EMOJI } from '@/lib/constants';
@@ -26,6 +26,8 @@ interface SchematicSidebarProps {
     editingMetadata: any;
     setEditingMetadata: (meta: any) => void;
     handleSaveMetadata: () => void;
+    tasks?: any[];
+    onNavigateToTasks?: (zoneId: string) => void;
 }
 
 export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
@@ -35,12 +37,26 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
     handleUpdateZoneAction,
     selectedItemId, selectedItemIds = [], setSelectedItemId,
     handleEditItem, onDeleteItem,
-    editingMetadata, setEditingMetadata, handleSaveMetadata
+    editingMetadata, setEditingMetadata, handleSaveMetadata,
+    tasks = [],
+    onNavigateToTasks,
 }) => {
     const itemRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
     const zoneRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
     const [searchText, setSearchText] = useState('');
     const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set());
+    const [filterHasTasks, setFilterHasTasks] = useState(false);
+
+    const tasksByZoneId = useMemo(() => {
+        const now = new Date();
+        const map = new Map<string, number>();
+        for (const t of tasks) {
+            if (!t.zoneId || t.status !== 'open') continue;
+            if (t.recurrence && t.dueDate && new Date(t.dueDate) > now) continue;
+            map.set(t.zoneId, (map.get(t.zoneId) || 0) + 1);
+        }
+        return map;
+    }, [tasks]);
 
     useEffect(() => {
         if (selectedItemId && itemRefs.current[selectedItemId]) {
@@ -58,7 +74,8 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                 block: 'start',
             });
         }
-    }, [selectedZoneId]);
+        // zones.length ensures this re-fires after zones load async (e.g. navigating from another view)
+    }, [selectedZoneId, zones.length]);
 
     return (
         <aside className={`${mobileVisible ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-96 bg-white border-t md:border-t-0 md:border-l shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[30] p-6 md:p-8 overflow-y-auto`}>
@@ -101,6 +118,13 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                             </button>
                         );
                     })}
+                    <button
+                        onClick={() => setFilterHasTasks(v => !v)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase border transition-all ${filterHasTasks ? 'bg-red-100 border-red-300 text-red-600 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'}`}
+                    >
+                        <ListTodo size={10} />
+                        open tasks
+                    </button>
                 </div>
             </div>
 
@@ -118,6 +142,8 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                         (meta.notes ?? '').toLowerCase().includes(q)
                     );
                 });
+                const zoneTaskCount = tasksByZoneId.get(zone.id) || 0;
+                if (filterHasTasks && zoneTaskCount === 0) return null;
                 const isFiltering = searchText || activeTypes.size > 0;
                 if (isFiltering && zoneItems.length === 0) return null;
                 const isSelected = selectedZoneIds.includes(zone.id);
@@ -131,7 +157,15 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                                     {editingZoneId === zone.id ? (
                                         <input autoFocus className="text-sm font-black uppercase bg-slate-100 px-2 py-0.5 rounded w-40 text-slate-900" value={zoneNameInput} onChange={e => setZoneNameInput(e.target.value)} onBlur={saveZoneName} onKeyDown={e => e.key === 'Enter' && saveZoneName()} onClick={e => e.stopPropagation()} />
                                     ) : (
-                                        <span className={`text-sm font-black uppercase text-slate-800 transition-opacity ${!isSelected && 'opacity-40'}`} onDoubleClick={(e) => { e.stopPropagation(); handleRenameZone(zone); }}>{zone.name}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-sm font-black uppercase text-slate-800 transition-opacity ${!isSelected && 'opacity-40'}`} onDoubleClick={(e) => { e.stopPropagation(); handleRenameZone(zone); }}>{zone.name}</span>
+                                            {zoneTaskCount > 0 && (
+                                                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black bg-red-50 border border-red-100 text-red-400">
+                                                    <ListTodo size={8} />
+                                                    {zoneTaskCount}
+                                                </span>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                                 <div className="flex flex-col items-end">
@@ -140,9 +174,20 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                                 </div>
                             </div>
                             {selectedZoneId === zone.id && (
-                                <div className="flex gap-2 mt-2 px-5">
-                                    <button onClick={(e) => { e.stopPropagation(); handleUpdateZoneAction(zone.id, 'lastWateredAt'); }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase"><Droplets size={12} /> {zone.lastWateredAt ? new Date(zone.lastWateredAt).toLocaleDateString() : 'Water'}</button>
-                                    <button onClick={(e) => { e.stopPropagation(); handleUpdateZoneAction(zone.id, 'lastFertilizedAt'); }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-[9px] font-black uppercase"><FlaskConical size={12} /> {zone.lastFertilizedAt ? new Date(zone.lastFertilizedAt).toLocaleDateString() : 'Fertilize'}</button>
+                                <div className="flex flex-col gap-1.5 mt-2 px-5">
+                                    <div className="flex gap-2">
+                                        <button onClick={(e) => { e.stopPropagation(); handleUpdateZoneAction(zone.id, 'lastWateredAt'); }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase"><Droplets size={12} /> {zone.lastWateredAt ? new Date(zone.lastWateredAt).toLocaleDateString() : 'Water'}</button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleUpdateZoneAction(zone.id, 'lastFertilizedAt'); }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-[9px] font-black uppercase"><FlaskConical size={12} /> {zone.lastFertilizedAt ? new Date(zone.lastFertilizedAt).toLocaleDateString() : 'Fertilize'}</button>
+                                    </div>
+                                    {zoneTaskCount > 0 && onNavigateToTasks && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onNavigateToTasks(zone.id); }}
+                                            className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-red-50 text-red-500 rounded-lg text-[9px] font-black uppercase border border-red-100 hover:bg-red-100 transition-colors"
+                                        >
+                                            <ListTodo size={12} />
+                                            {zoneTaskCount} open task{zoneTaskCount !== 1 ? 's' : ''} →
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>

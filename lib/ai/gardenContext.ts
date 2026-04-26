@@ -1,6 +1,6 @@
-import { inArray } from "drizzle-orm";
+import { inArray, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { zones, placements, seeds, seedlings } from "@/lib/db/schema";
+import { zones, placements, seeds, seedlings, tasks } from "@/lib/db/schema";
 
 export interface GardenContext {
     zones: any[];
@@ -8,11 +8,13 @@ export interface GardenContext {
         seeds: any[];
         seedlings: any[];
     };
+    openTasks?: any[];
 }
 
 export async function getGardenContext(opts: {
     includePlanner: boolean,
     includeSeedbed: boolean,
+    includeTasks?: boolean,
     selectedZoneIds?: string[],
     selectedItemIds?: string[],
     selectedSeedIds?: string[]
@@ -97,9 +99,31 @@ export async function getGardenContext(opts: {
         }));
     }
 
+    let tasksData: any[] = [];
+    if (opts.includeTasks !== false) {
+        const now = new Date();
+        const allOpenTasks = await db.select().from(tasks).where(eq(tasks.status, 'open'));
+        const allZones2 = await db.select({ id: zones.id, name: zones.name }).from(zones);
+        const zoneNameMap = new Map(allZones2.map(z => [z.id, z.name]));
+        // Exclude recurring tasks whose next due date is still in the future (already done for this period).
+        // Non-recurring tasks are always shown regardless of their due date.
+        const dueTasks = allOpenTasks.filter(t => !(t.recurrence && t.dueDate && new Date(t.dueDate) > now));
+        tasksData = dueTasks.map((t: any) => ({
+            id: t.id,
+            title: t.title,
+            description: t.description || undefined,
+            dueDate: t.dueDate ? new Date(t.dueDate).toLocaleDateString() : undefined,
+            overdue: t.dueDate ? new Date(t.dueDate) < now : false,
+            recurrence: t.recurrence || undefined,
+            linkedZone: t.zoneId ? (zoneNameMap.get(t.zoneId) || undefined) : undefined,
+            linkedPlant: t.placementLabel || undefined,
+        }));
+    }
+
     return {
         zones: simplifiedZones,
         seedbed: seedbedData,
-        selectedSeeds: selectedSeedsData
+        selectedSeeds: selectedSeedsData,
+        openTasks: tasksData.length > 0 ? tasksData : undefined,
     };
 }

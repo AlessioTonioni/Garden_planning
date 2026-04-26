@@ -11,6 +11,7 @@ export interface AIChatProps {
     selectedZoneIds?: string[];
     selectedItemIds?: string[];
     selectedSeedIds?: string[];
+    onTasksMutated?: () => void;
 }
 
 const DEFAULT_SYSTEM_PROMPT = `You are an expert AI Gardening Assistant for a home garden planning application.
@@ -32,12 +33,12 @@ INSTRUCTIONS:
 - Format responses in Markdown for readability
 - Try to answer in a concise and direct way`;
 
-export function AIChat({ selectedZoneIds = [], selectedItemIds = [], selectedSeedIds = [] }: AIChatProps) {
+export function AIChat({ selectedZoneIds = [], selectedItemIds = [], selectedSeedIds = [], onTasksMutated }: AIChatProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
-    const [contextFilter, setContextFilter] = useState<'all' | 'planner' | 'seedbed' | 'selection'>('all');
+    const [contextFilter, setContextFilter] = useState<'all' | 'tasks' | 'planner' | 'seedbed' | 'selection'>('all');
     const [lastPrompt, setLastPrompt] = useState<string | null>(null);
     const [showDebug, setShowDebug] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -99,6 +100,9 @@ export function AIChat({ selectedZoneIds = [], selectedItemIds = [], selectedSee
 
             if (data.prompt) {
                 setLastPrompt(data.prompt);
+            }
+            if (data.taskMutated && onTasksMutated) {
+                onTasksMutated();
             }
 
             setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
@@ -189,7 +193,7 @@ export function AIChat({ selectedZoneIds = [], selectedItemIds = [], selectedSee
 
                         {/* Context Toggles */}
                         <div className="flex gap-2 p-2 bg-slate-50 border-b border-slate-100 text-[10px] font-bold uppercase overflow-x-auto shrink-0">
-                            {(['all', 'planner', 'seedbed', 'selection'] as const).map(filter => (
+                            {(['all', 'tasks', 'planner', 'seedbed', 'selection'] as const).map(filter => (
                                 <button
                                     key={filter}
                                     onClick={() => setContextFilter(filter)}
