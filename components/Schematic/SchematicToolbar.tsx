@@ -1,5 +1,5 @@
 import React from 'react';
-import { Map as MapIcon, LocateFixed } from 'lucide-react';
+import { Map as MapIcon, LocateFixed, Droplets } from 'lucide-react';
 
 interface SchematicToolbarProps {
     rotation: number;
@@ -10,6 +10,7 @@ interface SchematicToolbarProps {
     setShowAll: (s: boolean) => void;
     onReset: () => void;
     onCenter: () => void;
+    onWaterAll: () => void;
     onClose?: () => void;
     isPrimary?: boolean;
     hiddenOnMobile?: boolean;
@@ -21,6 +22,7 @@ export const SchematicToolbar: React.FC<SchematicToolbarProps> = ({
     showAll, setShowAll,
     onReset,
     onCenter,
+    onWaterAll,
     onClose,
     isPrimary,
     hiddenOnMobile = false
@@ -80,6 +82,13 @@ export const SchematicToolbar: React.FC<SchematicToolbarProps> = ({
 
             {/* Actions */}
             <div className="flex items-center gap-2 pl-1">
+                <button
+                    onClick={onWaterAll}
+                    className="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-all active:scale-95"
+                    title="Water All Zones"
+                >
+                    <Droplets size={16} />
+                </button>
                 <button
                     onClick={onCenter}
                     className="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all active:scale-95"

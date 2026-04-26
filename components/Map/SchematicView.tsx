@@ -286,6 +286,11 @@ export const SchematicView = ({
         onUpdateZone(zoneId, { [field]: new Date().toISOString() });
     };
 
+    const handleWaterAll = () => {
+        const now = new Date().toISOString();
+        localZones.forEach(zone => onUpdateZone(zone.id, { lastWateredAt: now }));
+    };
+
     const handleRenameZone = (zone: any) => {
         setEditingZoneId(zone.id);
         setZoneNameInput(zone.name || '');
@@ -313,6 +318,7 @@ export const SchematicView = ({
                 showAll={showAll} setShowAll={setShowAll}
                 onReset={resetView}
                 onCenter={centerView}
+                onWaterAll={handleWaterAll}
                 onClose={onClose}
                 isPrimary={isPrimary}
                 hiddenOnMobile={mobileTab === 'inventory'}
@@ -422,7 +428,7 @@ export const SchematicView = ({
                                             if (!isFinite(p.x) || !isFinite(p.y)) return null;
 
                                             const label = (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata)?.species || '';
-                                            let fontSize = item.type === 'tree' ? 1.0 : item.type === 'plant' ? 0.8 : item.type === 'flower' ? 0.8 : 0.4;
+                                            let fontSize = item.type === 'tree' ? 1.0 : item.type === 'plant' ? 0.4 : item.type === 'flower' ? 0.4 : 0.4;
 
                                             return (
                                                 <g key={item.id} transform={`translate(${p.x}, ${p.y})`} className="cursor-pointer">

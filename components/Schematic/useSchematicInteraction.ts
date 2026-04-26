@@ -56,6 +56,15 @@ export const useSchematicInteraction = ({
     useEffect(() => { localItemsRef.current = localItems; }, [localItems]);
     const localZonesRef = useRef(localZones);
     useEffect(() => { localZonesRef.current = localZones; }, [localZones]);
+    const selectedItemIdsRef = useRef(selectedItemIds);
+    useEffect(() => { selectedItemIdsRef.current = selectedItemIds; }, [selectedItemIds]);
+    const selectedZoneIdsRef = useRef(selectedZoneIds);
+    useEffect(() => { selectedZoneIdsRef.current = selectedZoneIds; }, [selectedZoneIds]);
+    const onUpdateItemRef = useRef(onUpdateItem);
+    useEffect(() => { onUpdateItemRef.current = onUpdateItem; }, [onUpdateItem]);
+    const onUpdateZoneRef = useRef(onUpdateZone);
+    useEffect(() => { onUpdateZoneRef.current = onUpdateZone; }, [onUpdateZone]);
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // --- KEYBOARD MOVEMENT ---
     useEffect(() => {
@@ -142,6 +151,9 @@ export const useSchematicInteraction = ({
             const dLat = (dX * sin - dY * cos) * DELTA;
             const dLng = (dX * cos + dY * sin) * (DELTA / cosFactor);
 
+            // Cancel any pending save — we're still moving
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
             if (selectedItemIds.length > 0) {
                 setLocalItems(prev => prev.map(item => {
                     if (!selectedItemIds.includes(item.id)) return item;
@@ -163,17 +175,24 @@ export const useSchematicInteraction = ({
             const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
             if (!keys.includes(e.key)) return;
 
-            if (selectedItemIds.length > 0) {
-                selectedItemIds.forEach(id => {
-                    const item = localItemsRef.current.find(i => i.id === id);
-                    if (item) onUpdateItem(item.id, item.lat, item.lng);
-                });
-            } else if (selectedZoneIds.length > 0) {
-                selectedZoneIds.forEach(id => {
-                    const zone = localZonesRef.current.find(z => z.id === id);
-                    if (zone) onUpdateZone(zone.id, { geoJson: JSON.stringify(zone.geoJson) });
-                });
-            }
+            // Debounce: wait until keys stop firing before persisting, so rapid
+            // presses don't trigger multiple loadZones() calls that race and bounce.
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = setTimeout(() => {
+                const ids = selectedItemIdsRef.current;
+                const zids = selectedZoneIdsRef.current;
+                if (ids.length > 0) {
+                    ids.forEach(id => {
+                        const item = localItemsRef.current.find(i => i.id === id);
+                        if (item) onUpdateItemRef.current(item.id, item.lat, item.lng);
+                    });
+                } else if (zids.length > 0) {
+                    zids.forEach(id => {
+                        const zone = localZonesRef.current.find(z => z.id === id);
+                        if (zone) onUpdateZoneRef.current(zone.id, { geoJson: JSON.stringify(zone.geoJson) });
+                    });
+                }
+            }, 300);
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -181,8 +200,9 @@ export const useSchematicInteraction = ({
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         };
-    }, [selectedZoneIds, selectedItemIds, activeTool, cosFactor, rotation, zoom, onUpdateZone, onUpdateItem, onPaste, onDeleteItem, setPanOffset, setSelectedItemIds]);
+    }, [selectedZoneIds, selectedItemIds, activeTool, cosFactor, rotation, zoom, onPaste, onDeleteItem, setPanOffset, setSelectedItemIds]);
 
     // --- MOUSE HANDLERS ---
     const handleMouseDown = (e: React.MouseEvent) => {
