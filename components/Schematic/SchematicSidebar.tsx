@@ -78,13 +78,14 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
     }, [selectedZoneId, zones.length]);
 
     return (
-        <aside className={`${mobileVisible ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-96 bg-white border-t md:border-t-0 md:border-l shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[30] p-6 md:p-8 overflow-y-auto`}>
-            <div className="flex items-center gap-2 mb-4">
-                <Layers size={14} className="text-green-600" />
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Garden Inventory</h3>
-            </div>
+        <aside className={`${mobileVisible ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-96 bg-white border-t md:border-t-0 md:border-l shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[30] px-6 md:px-8 pb-6 md:pb-8 overflow-y-auto`}>
+            <div className="sticky top-0 bg-white z-10 pt-6 md:pt-8 pb-4 -mx-6 md:-mx-8 px-6 md:px-8">
+                <div className="flex items-center gap-2 mb-4">
+                    <Layers size={14} className="text-green-600" />
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Garden Inventory</h3>
+                </div>
 
-            <div className="flex flex-col gap-3 mb-6">
+                <div className="flex flex-col gap-3">
                 <div className="relative">
                     <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     <input
@@ -126,8 +127,10 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                         open tasks
                     </button>
                 </div>
+                </div>
             </div>
 
+            <div className="mt-2">
             {zones.map(zone => {
                 const q = searchText.toLowerCase();
                 const zoneItems = items.filter(i => {
@@ -253,6 +256,7 @@ export const SchematicSidebar: React.FC<SchematicSidebarProps> = ({
                     </div>
                 );
             })}
+            </div>
         </aside>
     );
 };
