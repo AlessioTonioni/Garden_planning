@@ -56,6 +56,15 @@ export const tasks = sqliteTable('Task', {
     lastCompletedAt: integer('lastCompletedAt', { mode: 'timestamp' }),
 });
 
+export const chatConversations = sqliteTable('ChatConversation', {
+    id:            text('id').primaryKey().$defaultFn(() => createId()),
+    createdAt:     integer('createdAt', { mode: 'timestamp' }).$defaultFn(now).notNull(),
+    updatedAt:     integer('updatedAt', { mode: 'timestamp' }).$defaultFn(now).notNull(),
+    title:         text('title').notNull(),
+    messages:      text('messages').notNull().default('[]'),
+    contextFilter: text('contextFilter').notNull().default('all'),
+});
+
 export const seedlings = sqliteTable('Seedling', {
     id:               text('id').primaryKey().$defaultFn(() => createId()),
     createdAt:        integer('createdAt', { mode: 'timestamp' }).$defaultFn(now).notNull(),
