@@ -1,5 +1,5 @@
 // ─── AI Model ────────────────────────────────────────────────────────────────
-export const AI_MODEL = 'gemini-3-flash-preview';
+export const AI_MODEL = 'gemini-3.8-flash';
 
 // ─── Item Types (plants placed within zones) ─────────────────────────────────
 export const ITEM_TYPES = ['plant', 'tree', 'pot', 'flower'] as const;

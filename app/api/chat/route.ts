@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenAI, Type, type Tool } from "@google/genai";
 import { getGardenContext } from "@/lib/ai/gardenContext";
 import { NextResponse } from "next/server";
 import { AI_MODEL } from "@/lib/constants";
@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
+const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY! });
 
 function advanceDueDate(current: Date | null, recurrence: string): Date {
     const base = current && new Date(current) > new Date() ? new Date(current) : new Date();
@@ -19,21 +19,20 @@ function advanceDueDate(current: Date | null, recurrence: string): Date {
     return base;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const TASK_TOOLS: any[] = [{
+const TASK_TOOLS: Tool[] = [{
     functionDeclarations: [
         {
             name: 'create_garden_task',
             description: 'Add a new task or reminder to the garden to-do list',
             parameters: {
-                type: SchemaType.OBJECT,
+                type: Type.OBJECT,
                 properties: {
-                    title:          { type: SchemaType.STRING, description: 'Short task title' },
-                    description:    { type: SchemaType.STRING, description: 'Optional longer description' },
-                    dueDate:        { type: SchemaType.STRING, description: 'ISO date string (YYYY-MM-DD), optional' },
-                    zoneId:         { type: SchemaType.STRING, description: 'Zone ID to link the task to, optional' },
-                    placementLabel: { type: SchemaType.STRING, description: 'Plant or item name the task is about, optional' },
-                    recurrence:     { type: SchemaType.STRING, description: 'Recurrence: daily, weekly, monthly, yearly, or omit for one-off' },
+                    title:          { type: Type.STRING, description: 'Short task title' },
+                    description:    { type: Type.STRING, description: 'Optional longer description' },
+                    dueDate:        { type: Type.STRING, description: 'ISO date string (YYYY-MM-DD), optional' },
+                    zoneId:         { type: Type.STRING, description: 'Zone ID to link the task to, optional' },
+                    placementLabel: { type: Type.STRING, description: 'Plant or item name the task is about, optional' },
+                    recurrence:     { type: Type.STRING, description: 'Recurrence: daily, weekly, monthly, yearly, or omit for one-off' },
                 },
                 required: ['title'],
             }
@@ -42,10 +41,10 @@ const TASK_TOOLS: any[] = [{
             name: 'complete_garden_task',
             description: 'Mark an existing garden task as done (recurring tasks get rescheduled instead of closed)',
             parameters: {
-                type: SchemaType.OBJECT,
+                type: Type.OBJECT,
                 properties: {
-                    taskId:    { type: SchemaType.STRING, description: 'Exact ID of the task (preferred if known)' },
-                    taskTitle: { type: SchemaType.STRING, description: 'Title or partial title to find the task by' },
+                    taskId:    { type: Type.STRING, description: 'Exact ID of the task (preferred if known)' },
+                    taskTitle: { type: Type.STRING, description: 'Title or partial title to find the task by' },
                 },
                 required: [],
             }
@@ -108,12 +107,6 @@ export async function POST(req: Request) {
         const { messages, contextFilter, selectedZoneIds, selectedItemIds, selectedSeedIds, systemPrompt } = await req.json();
         const latestMessage = messages[messages.length - 1];
 
-        const model = genAI.getGenerativeModel({
-            model: AI_MODEL,
-            systemInstruction: systemPrompt || 'You are a helpful gardening assistant.',
-            tools: TASK_TOOLS,
-        });
-
         const history = messages.slice(0, -1).map((m: any) => ({
             role: m.role === 'user' ? 'user' : 'model',
             parts: [{ text: m.content }]
@@ -135,23 +128,31 @@ export async function POST(req: Request) {
             contentToSend = `GARDEN CONTEXT (for grounding your responses):\n${JSON.stringify(context, null, 2)}\n\nUSER QUESTION:\n${latestMessage.content}`;
         }
 
-        const chat = model.startChat({ history });
-        const result = await chat.sendMessage(contentToSend);
-        const response = await result.response;
+        const chat = ai.chats.create({
+            model: AI_MODEL,
+            config: {
+                systemInstruction: systemPrompt || 'You are a helpful gardening assistant.',
+                tools: TASK_TOOLS,
+            },
+            history,
+        });
+        const response = await chat.sendMessage({ message: contentToSend });
 
-        let responseText = response.text();
+        let responseText: string;
         let taskMutated = false;
 
-        const fnCalls = response.functionCalls();
+        const fnCalls = response.functionCalls;
         if (fnCalls && fnCalls.length > 0) {
             const fn = fnCalls[0];
-            const fnResult = await handleFunctionCall(fn.name, fn.args as Record<string, string>);
+            const fnResult = await handleFunctionCall(fn.name!, fn.args as Record<string, string>);
             taskMutated = fnResult.success;
 
-            const result2 = await chat.sendMessage([{
-                functionResponse: { name: fn.name, response: fnResult }
-            }]);
-            responseText = result2.response.text();
+            const response2 = await chat.sendMessage({
+                message: [{ functionResponse: { name: fn.name, response: fnResult } }]
+            });
+            responseText = response2.text ?? '';
+        } else {
+            responseText = response.text ?? '';
         }
 
         const systemInstructionUsed = systemPrompt || 'You are a helpful gardening assistant.';

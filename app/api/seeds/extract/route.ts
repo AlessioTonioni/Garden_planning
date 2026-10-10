@@ -1,8 +1,8 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 import { AI_MODEL } from "@/lib/constants";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
+const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY! });
 
 export async function POST(req: Request) {
     try {
@@ -11,11 +11,6 @@ export async function POST(req: Request) {
         if (!images || !Array.isArray(images) || images.length === 0) {
             return NextResponse.json({ error: "No images provided" }, { status: 400 });
         }
-
-        const model = genAI.getGenerativeModel({
-            model: AI_MODEL,
-            generationConfig: { responseMimeType: "application/json" }
-        });
 
         const prompt = `Extract seed packet information from the images. If some information are missing you can integrate based on your common knowledge or search results. Independently of the language on the package please extract and translate all information to english. 
 Extract:
@@ -39,9 +34,12 @@ Return JSON matching this schema:
             },
         }));
 
-        const result = await model.generateContent([prompt, ...imageParts]);
-        const response = await result.response;
-        const text = response.text().trim();
+        const response = await ai.models.generateContent({
+            model: AI_MODEL,
+            contents: [prompt, ...imageParts],
+            config: { responseMimeType: "application/json" },
+        });
+        const text = (response.text ?? '').trim();
 
         // Remove markdown formatting if Gemini included it
         const jsonMatch = text.match(/\{[\s\S]*\}/);
