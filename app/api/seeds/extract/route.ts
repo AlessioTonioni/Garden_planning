@@ -27,19 +27,19 @@ Extract:
 Return JSON matching this schema:
 {"species": string, "packetQuantity": number, "acquiredAt": string, "expiryDate": string | null, "seedingStart": number | null, "seedingEnd": number | null, "harvestingStart": number | null, "harvestingEnd": number | null, "notes": string}`;
 
-        const imageParts = images.map((base64: string) => ({
-            inlineData: {
-                data: base64.split(',')[1],
-                mimeType: "image/jpeg", // Assuming jpeg for now, should ideally be dynamic
-            },
+        const imageItems = images.map((base64: string) => ({
+            type: "image" as const,
+            data: base64.split(',')[1],
+            mime_type: "image/jpeg" as const, // Assuming jpeg for now, should ideally be dynamic
         }));
 
-        const response = await ai.models.generateContent({
+        const interaction = await ai.interactions.create({
             model: AI_MODEL,
-            contents: [prompt, ...imageParts],
-            config: { responseMimeType: "application/json" },
+            input: [{ type: "text", text: prompt }, ...imageItems],
+            response_format: [{ type: "text", mime_type: "application/json" }],
+            store: false,
         });
-        const text = (response.text ?? '').trim();
+        const text = (interaction.output_text ?? '').trim();
 
         // Remove markdown formatting if Gemini included it
         const jsonMatch = text.match(/\{[\s\S]*\}/);
